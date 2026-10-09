@@ -1,0 +1,12 @@
+services:
+  spicetify-library:
+    image: ghcr.io/daviidpaark/spicetify-library:latest
+    container_name: spicetify-library
+    restart: unless-stopped
+    ports:
+      # Read-only site: point the reverse proxy here
+      - "8080:8080"
+      # Sync endpoint: accepts pushes from the Spicetify apps, keep it on the LAN
+      - "8081:8081"
+    volumes:
+      - ./data:/data

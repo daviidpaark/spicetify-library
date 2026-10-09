@@ -1,0 +1,15 @@
+{
+  "name": "spicetify-library",
+  "version": "0.1.0",
+  "description": "Mobile web copy of the Random Library and Release List Spicetify apps",
+  "license": "MIT",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

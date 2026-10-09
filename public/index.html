@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121212">
+<title>Spotify Library</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="view"></main>
+  <div class="rl-grid" id="grid"></div>
+  <div id="sentinel"></div>
+  <div class="rl-empty" id="empty" hidden></div>
+
+  <nav class="rl-tabbar" id="tabbar">
+    <a class="rl-tab" href="#/library" data-tab="library">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+      <span>Random Library</span>
+    </a>
+    <a class="rl-tab" href="#/releases" data-tab="releases">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span>Release List</span>
+    </a>
+  </nav>
+
+  <div class="rl-modal-backdrop" id="pickModal" hidden>
+    <div class="rl-modal-card">
+      <div class="rl-card-artwork-wrapper" id="pickArt"></div>
+      <div class="rl-pick-title" id="pickTitle"></div>
+      <div class="rl-pick-artist" id="pickArtist"></div>
+      <div class="rl-pick-actions">
+        <a class="rl-btn primary" id="pickOpen">Open in Spotify</a>
+        <button class="rl-btn" id="pickAgain">Another</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

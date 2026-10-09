@@ -1,0 +1,13 @@
+# Synced library snapshots
+data/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.vscode/
+.idea/
+
+# Local logs
+*.log

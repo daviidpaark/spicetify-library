@@ -1,0 +1,169 @@
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; background: #121212; color: #fff; }
+body {
+  font-family: "Spotify Mix", CircularSp, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  padding: 20px 16px calc(84px + env(safe-area-inset-bottom));
+  -webkit-tap-highlight-color: transparent;
+}
+a { color: inherit; text-decoration: none; }
+button, input, select { font: inherit; }
+@media (min-width: 800px) { body { padding: 40px 32px calc(96px + env(safe-area-inset-bottom)); } }
+
+/* Header */
+.rl-header { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.rl-title-row { display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap; }
+.rl-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+.rl-subtitle { font-size: 13px; color: rgba(255, 255, 255, 0.7); margin-top: 4px; }
+.rl-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.rl-mode-toggle {
+  display: inline-flex; background: rgba(255, 255, 255, 0.07); border-radius: 500px; padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.rl-mode-btn {
+  background: transparent; color: rgba(255, 255, 255, 0.7); border: none; border-radius: 500px;
+  padding: 6px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.rl-mode-btn.active { background: #fff; color: #121212; }
+
+.rl-btn {
+  border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 500px; padding: 8px 16px;
+  font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  background: rgba(255, 255, 255, 0.1); color: #fff; display: inline-flex; align-items: center; gap: 8px;
+}
+.rl-btn.primary { background: #1ed760; color: #000; border-color: transparent; }
+.rl-btn:active { transform: scale(0.97); }
+.rl-btn:disabled { opacity: 0.4; cursor: default; }
+.rl-btn svg { flex-shrink: 0; }
+
+/* Toolbar */
+.rl-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 20px; }
+.rl-search, .rl-sort, .rl-date {
+  background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 500px; color: #fff; font-size: 14px; padding: 9px 16px; outline: none;
+}
+.rl-search { flex: 1 1 200px; min-width: 0; }
+.rl-search:focus, .rl-sort:focus, .rl-date:focus { border-color: #1ed760; }
+.rl-sort option { background: #181818; }
+.rl-date { color-scheme: dark; padding: 6px 12px; font-size: 13px; }
+
+.rl-pills { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.rl-filter-pill {
+  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 500px; padding: 6px 14px;
+  font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  background: rgba(255, 255, 255, 0.07); color: rgba(255, 255, 255, 0.7);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.rl-filter-pill.active { background: #fff; color: #121212; border-color: #fff; }
+.rl-filter-pill.editions { color: #f87171; border-color: rgba(248, 113, 113, 0.45); }
+.rl-filter-pill.editions.active { background: #f87171; color: #121212; border-color: #f87171; }
+.rl-pill-count { font-size: 11px; font-weight: 600; opacity: 0.6; }
+
+/* Release List filter panel */
+.rl-panel {
+  border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 14px;
+  background: rgba(255, 255, 255, 0.02); margin-bottom: 24px; display: flex; flex-direction: column; gap: 12px;
+}
+.rl-panel .rl-toolbar { margin-bottom: 0; }
+.rl-chip-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.rl-chip-label { font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, 0.6); }
+.rl-chip {
+  border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 500px; padding: 6px 13px;
+  font-size: 12px; font-weight: 700; cursor: pointer; background: transparent; color: #fff; white-space: nowrap;
+}
+.rl-chip.active { background: #1ed760; border-color: #1ed760; color: #000; }
+.rl-chip.saved.active { background: rgba(30, 215, 96, 0.2); color: #1ed760; }
+
+/* Artist banner */
+.rl-back { background: none; border: none; color: rgba(255, 255, 255, 0.85); font-size: 13px; font-weight: 700; cursor: pointer; padding: 4px 0; margin-bottom: 12px; display: inline-flex; gap: 8px; }
+.rl-banner {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; background: rgba(255, 255, 255, 0.03); margin-bottom: 18px;
+}
+.rl-banner-avatar { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: #282828; flex-shrink: 0; }
+.rl-banner-name { font-size: 22px; font-weight: 800; }
+.rl-banner-info { flex: 1 1 160px; min-width: 0; }
+.rl-history { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; font-size: 13px; color: rgba(255, 255, 255, 0.7); }
+
+/* Grid and cards match the Spicetify apps */
+.rl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+@media (min-width: 800px) { .rl-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; } }
+@media (min-width: 1200px) { .rl-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 20px; } }
+@media (min-width: 1700px) { .rl-grid { grid-template-columns: repeat(auto-fill, minmax(195px, 1fr)); gap: 24px; } }
+@media (min-width: 2200px) { .rl-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 28px; } }
+
+.rl-group-header {
+  grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  font-size: 18px; font-weight: 800; margin-top: 16px; padding-bottom: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.rl-group-header:first-child { margin-top: 0; }
+.rl-group-count { font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, 0.5); }
+.rl-subgroup-header { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font-size: 11px; color: rgba(255, 255, 255, 0.5); }
+
+.rl-card { position: relative; padding: 0 0 8px; display: flex; flex-direction: column; min-width: 0; transition: transform 0.18s ease; }
+@media (hover: hover) {
+  .rl-card:hover { transform: translateY(-3px); }
+  .rl-card:hover .rl-card-artwork { transform: scale(1.03); }
+  .rl-card-title:hover, .rl-card-artist:hover { text-decoration: underline; }
+}
+.rl-card-artwork-wrapper {
+  display: block; position: relative; width: 100%; padding-bottom: 100%; border-radius: 6px; overflow: hidden;
+  margin-bottom: 12px; background: #181818; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+.rl-card-artwork-wrapper.avatar { border-radius: 50%; background: #1c1c1c; }
+.rl-card-artwork { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.25s ease; }
+.rl-in-library-badge {
+  position: absolute; top: 10px; right: 10px; width: 24px; height: 24px; border-radius: 50%;
+  background: #1ed760; color: #121212; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+.rl-card-title { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rl-card-artist-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; margin-top: 4px; }
+.rl-card-artist { font-size: 13px; color: rgba(255, 255, 255, 0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.rl-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 6px; }
+.rl-card-meta-left { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rl-type-badge { font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px; white-space: nowrap; flex-shrink: 0; }
+.rl-card-tracks { font-size: 11px; color: rgba(255, 255, 255, 0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.rl-card-date { font-size: 11px; color: rgba(255, 255, 255, 0.5); white-space: nowrap; }
+.rl-artist-name { font-size: 14px; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rl-artist-label { font-size: 12px; color: rgba(255, 255, 255, 0.6); text-align: center; margin-top: 2px; }
+
+.rl-edition-badge {
+  font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px;
+  color: #fff; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.15);
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0; cursor: pointer;
+}
+.rl-edition-badge.upgrade { background: linear-gradient(135deg, #8a2387, #e94057, #f27121); border-color: rgba(255, 255, 255, 0.3); }
+.rl-edition-menu {
+  position: absolute; right: 0; bottom: 34px; z-index: 6; min-width: 100%; max-width: 280px; max-height: 240px; overflow-y: auto;
+  background: #282828; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 4px; box-shadow: 0 12px 28px rgba(0, 0, 0, 0.7);
+}
+.rl-edition-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+.rl-edition-item:hover { background: rgba(255, 255, 255, 0.18); }
+.rl-edition-item span:last-child { color: #1ed760; flex-shrink: 0; }
+
+.rl-empty { text-align: center; color: rgba(255, 255, 255, 0.7); padding: 12vh 16px; font-size: 14px; line-height: 1.6; }
+
+/* Bottom tab bar, standing in for Spotify's sidebar entries */
+.rl-tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: flex;
+  background: rgba(18, 18, 18, 0.96); backdrop-filter: blur(12px); border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.rl-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 8px; font-size: 11px; font-weight: 700; color: rgba(255, 255, 255, 0.5); }
+.rl-tab.active { color: #1ed760; }
+.rl-tab.active svg { stroke-width: 2.8; }
+
+.rl-modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.82); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center; z-index: 10; padding: 16px;
+}
+.rl-modal-card {
+  background: #181818; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 12px;
+  width: 100%; max-width: 380px; padding: 20px; box-shadow: 0 24px 56px rgba(0, 0, 0, 0.85);
+}
+.rl-pick-title { font-size: 20px; font-weight: 800; margin-top: 4px; overflow-wrap: anywhere; }
+.rl-pick-artist { font-size: 14px; color: rgba(255, 255, 255, 0.7); margin-top: 4px; }
+.rl-pick-actions { display: flex; gap: 10px; margin-top: 18px; }
+.rl-pick-actions .rl-btn { flex: 1; justify-content: center; padding: 12px 16px; }

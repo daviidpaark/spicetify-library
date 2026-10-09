@@ -1,0 +1,19 @@
+# Git
+.git
+.gitignore
+.github
+
+# Testing
+test/
+
+# Local data
+data/
+
+# IDE & Editor files
+.idea/
+.vscode/
+
+# Documentation
+*.md
+LICENSE
+docker-compose.yml
