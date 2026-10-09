@@ -22,6 +22,8 @@ const MODES = {
   artists: { label: "Artists", search: "Search followed artists…", random: "Random Artist" },
   discover: { label: "Discover", search: "Search unsaved releases or artists…", random: "Random Album" },
 };
+const GROUP_MODES = [["date", "Day-by-Day Timeline"], ["date_type", "Day-by-Day with Type Subgroups"], ["type", "By Release Type (Albums, EPs, Singles)"]];
+const GROUP_ORDERS = [["artist", "Artist Name (A-Z)"], ["album-group", "Album Type → Artist Name"], ["time", "Chronological (Time)"]];
 const ARTIST_FILTERS = [
   ["all", "All"], ["saved", "✓ In Library"], ["album", "Albums"], ["ep", "EPs"], ["single", "Singles"], ["has_editions", "⚡ Alternative Editions"],
 ];
@@ -29,6 +31,7 @@ const ARTIST_FILTERS = [
 const ICONS = {
   check: '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M13.985 2.383L5.674 12.14 1.34 7.805l1.414-1.414 2.92 2.92 6.897-8.106 1.414 1.178z"/></svg>',
   bolt: '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+  gear: '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>',
   shuffle: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>',
 };
 
@@ -55,6 +58,8 @@ function loadState() {
     discoverTypes: Array.isArray(saved.discoverTypes) && saved.discoverTypes.length ? saved.discoverTypes : ["album", "ep"],
     artistFilter: saved.artistFilter || "all",
     rel: { days: 30, from: "", to: "", types: [...RELEASE_TYPES], saved: false, sort: "newest", ...saved.rel },
+    // View settings for this device; null follows what the Spicetify apps synced
+    settings: { groupBy: null, releasesOrder: null, colors: null, ...saved.settings },
   };
 }
 
@@ -330,6 +335,7 @@ function libraryHeader(subtitle) {
       render();
     }, ICONS.shuffle)
   );
+  controls.appendChild(button("rl-btn", "Settings", openSettings, ICONS.gear));
   header.append(titleBlock, controls);
   return header;
 }
@@ -509,6 +515,10 @@ async function showPick() {
 // ---------------------------------------------------------------------------
 // Release List
 // ---------------------------------------------------------------------------
+function releaseCount(count) {
+  return count === 1 ? "1 release" : `${count || 0} releases`;
+}
+
 function chipRow(label) {
   const row = el("div", "rl-chip-row");
   row.appendChild(el("span", "rl-chip-label", label));
@@ -527,7 +537,9 @@ function renderReleases() {
   const titleBlock = el("div");
   const subtitle = el("div", "rl-subtitle", "Loading…");
   titleBlock.append(el("div", "rl-title", "Release List"), subtitle);
-  header.appendChild(titleBlock);
+  const controls = el("div", "rl-controls");
+  controls.appendChild(button("rl-btn", "Settings", openSettings, ICONS.gear));
+  header.append(titleBlock, controls);
   view.appendChild(header);
 
   const panel = el("div", "rl-panel");
@@ -571,12 +583,13 @@ function renderReleases() {
   panel.appendChild(types);
   view.appendChild(panel);
 
-  const groupByType = ["date_type", "type"].includes(meta.releases.settings?.groupBy);
   const load = () => {
     const params = { q: queries.releases, sort: rel.sort, types: rel.types.join(",") };
     if (rel.days > 0) params.days = rel.days;
     if (rel.days === -1) Object.assign(params, { from: rel.from, to: rel.to });
     if (rel.saved) params.saved = 1;
+    if (state.settings.groupBy) params.group = state.settings.groupBy;
+    if (state.settings.releasesOrder) params.order = state.settings.releasesOrder;
 
     let lastDate = null;
     let lastType = null;
@@ -585,18 +598,28 @@ function renderReleases() {
       const fragment = document.createDocumentFragment();
       for (const item of data.items) {
         const counts = data.dayCounts[item.releaseDate] || {};
-        if (item.releaseDate !== lastDate) {
-          lastDate = item.releaseDate;
-          lastType = null;
-          const group = el("div", "rl-group-header", dayHeader(item.releaseDate));
-          group.appendChild(el("span", "rl-group-count", counts.total === 1 ? "1 release" : `${counts.total || 0} releases`));
-          fragment.appendChild(group);
-        }
-        if (groupByType && item.type !== lastType) {
-          lastType = item.type;
-          const subgroup = el("div", "rl-subgroup-header");
-          subgroup.append(typeBadge(item.type, colors.releases), `(${counts[item.type] || 0})`);
-          fragment.appendChild(subgroup);
+        if (data.group === "type") {
+          // One section per release type, with no day headings
+          if (item.type !== lastType) {
+            lastType = item.type;
+            const group = el("div", "rl-group-header");
+            group.append(typeBadge(item.type, colors.releases), el("span", "rl-group-count", releaseCount(data.typeCounts[item.type])));
+            fragment.appendChild(group);
+          }
+        } else {
+          if (item.releaseDate !== lastDate) {
+            lastDate = item.releaseDate;
+            lastType = null;
+            const group = el("div", "rl-group-header", dayHeader(item.releaseDate));
+            group.appendChild(el("span", "rl-group-count", releaseCount(counts.total)));
+            fragment.appendChild(group);
+          }
+          if (data.group === "date_type" && item.type !== lastType) {
+            lastType = item.type;
+            const subgroup = el("div", "rl-subgroup-header");
+            subgroup.append(typeBadge(item.type, colors.releases), `(${counts[item.type] || 0})`);
+            fragment.appendChild(subgroup);
+          }
         }
         fragment.appendChild(albumCard(item, colors.releases));
       }
@@ -605,6 +628,106 @@ function renderReleases() {
     if (!meta.releases.count) feed.emptyText = "Nothing synced yet. Press Refresh in Release List on the desktop.";
   };
   load();
+}
+
+// ---------------------------------------------------------------------------
+// Settings (kept on this device; unset values follow what the Spicetify apps synced)
+// ---------------------------------------------------------------------------
+function applyColors() {
+  const custom = state.settings.colors;
+  colors = {
+    library: { ...DEFAULT_COLORS.library, ...meta.library.groupColors, ...custom },
+    releases: { ...DEFAULT_COLORS.releases, ...meta.releases.settings?.groupColors, ...custom },
+  };
+}
+
+function settingsSection(title) {
+  const section = el("div", "rl-settings-section");
+  section.appendChild(el("div", "rl-settings-title", title));
+  return section;
+}
+
+function settingsSelect(label, options, key) {
+  const field = el("label", "rl-settings-field", label);
+  const synced = meta.releases.settings?.[key] || options[0][0];
+  const select = el("select", "rl-sort");
+  for (const [value, text] of options) select.add(new Option(text, value));
+  select.value = state.settings[key] || synced;
+  select.addEventListener("change", () => {
+    state.settings[key] = select.value === synced ? null : select.value;
+    saveState();
+    render();
+  });
+  field.appendChild(select);
+  return field;
+}
+
+function settingsRow(label, value) {
+  const row = el("label", "rl-settings-row");
+  row.append(label, value);
+  return row;
+}
+
+function syncedTime(value) {
+  return value ? new Date(value).toLocaleString() : "never";
+}
+
+function openSettings() {
+  const card = $("settingsCard");
+  card.textContent = "";
+  card.appendChild(el("div", "rl-pick-title", "Settings"));
+
+  const grouping = settingsSection("Feed Grouping");
+  grouping.append(
+    settingsSelect("Group Feed By:", GROUP_MODES, "groupBy"),
+    settingsSelect("Order Within Groups:", GROUP_ORDERS, "releasesOrder"),
+    el("div", "rl-settings-note", "Applies to Release List. Defaults follow the desktop app.")
+  );
+
+  const colorSection = settingsSection("Release Type Colors");
+  for (const type of RELEASE_TYPES) {
+    const picker = el("input", "rl-color-picker");
+    picker.type = "color";
+    picker.value = colors.releases[type];
+    const badge = el("span");
+    badge.appendChild(typeBadge(type, colors.releases));
+    picker.addEventListener("change", () => {
+      state.settings.colors = { ...colors.releases, [type]: picker.value };
+      saveState();
+      applyColors();
+      render();
+      openSettings();
+    });
+    colorSection.appendChild(settingsRow(badge, picker));
+  }
+  const reset = button("rl-btn", "Use Synced Colors", () => {
+    state.settings.colors = null;
+    saveState();
+    applyColors();
+    render();
+    openSettings();
+  });
+  reset.disabled = !state.settings.colors;
+  colorSection.append(
+    reset,
+    el("div", "rl-settings-note", state.settings.colors ? "Using custom colors on this device." : "Following the colors set in the desktop apps.")
+  );
+
+  const status = settingsSection("Library Status");
+  const rows = [
+    ["Saved albums", meta.library.albums],
+    ["Followed artists", meta.library.artists],
+    ["Library synced", syncedTime(meta.library.syncedAt)],
+    ["Releases", meta.releases.count],
+    ["Releases synced", syncedTime(meta.releases.syncedAt)],
+    ["Server version", meta.version ? "v" + meta.version : "unknown"],
+  ];
+  for (const [label, value] of rows) status.appendChild(settingsRow(label, el("span", "rl-settings-value", String(value))));
+
+  const footer = el("div", "rl-pick-actions");
+  footer.appendChild(button("rl-btn primary", "Done", () => ($("settingsModal").hidden = true)));
+  card.append(grouping, colorSection, status, footer);
+  $("settingsModal").hidden = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -630,20 +753,21 @@ document.addEventListener("click", (e) => {
   if (openMenu && !e.target.closest(".rl-edition-menu, .rl-edition-badge")) closeEditionMenu();
 });
 $("pickAgain").addEventListener("click", showPick);
-$("pickModal").addEventListener("click", (e) => {
-  if (e.target === e.currentTarget) e.currentTarget.hidden = true;
-});
+for (const modal of [$("pickModal"), $("settingsModal")]) {
+  modal.addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) modal.hidden = true;
+  });
+}
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") $("pickModal").hidden = true;
+  if (e.key !== "Escape") return;
+  $("pickModal").hidden = true;
+  $("settingsModal").hidden = true;
 });
 
 api("meta")
   .then((data) => {
     meta = data;
-    colors = {
-      library: { ...DEFAULT_COLORS.library, ...data.library.groupColors },
-      releases: { ...DEFAULT_COLORS.releases, ...data.releases.settings?.groupColors },
-    };
+    applyColors();
   })
   .catch(() => {})
   .finally(render);

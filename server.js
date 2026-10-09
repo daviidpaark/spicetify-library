@@ -10,6 +10,9 @@ const { version: APP_VERSION } = require("./package.json");
 const PORT = Number(process.env.PORT) || 8080;
 const SYNC_PORT = Number(process.env.SYNC_PORT) || 8081;
 const DATA_DIR = process.env.DATA_DIR || "/data";
+// Only Spotify's desktop client may push from a browser context, so a web page opened on a
+// LAN device cannot overwrite the snapshots
+const SYNC_ORIGIN = process.env.SYNC_ORIGIN || "https://xpui.app.spotify.com";
 const PUBLIC_DIR = path.join(__dirname, "public");
 const LIBRARY_FILE = path.join(DATA_DIR, "library.json");
 const RELEASES_FILE = path.join(DATA_DIR, "releases.json");
@@ -19,6 +22,13 @@ const MAX_ORDER_CACHE = 8;
 const EP_MIN_TRACKS = 4;
 const DAY_MS = 86400000;
 const RELEASE_TYPES = ["album", "ep", "single"];
+// Release List's feed grouping and order-within-group settings; the first entry is the default
+const GROUP_MODES = ["date", "date_type", "type"];
+const GROUP_ORDERS = ["artist", "album-group", "time"];
+
+function oneOf(value, allowed) {
+  return allowed.includes(value) ? value : allowed[0];
+}
 
 const STATIC_FILES = {
   "/": ["index.html", "text/html; charset=utf-8"],
@@ -31,7 +41,8 @@ const STATIC_FILES = {
 
 // The Spicetify apps push from Spotify's own origin, so the sync port answers CORS preflights
 const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": SYNC_ORIGIN,
+  Vary: "Origin",
   "Access-Control-Allow-Methods": "GET, PUT, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
   "Access-Control-Allow-Private-Network": "true",
@@ -79,6 +90,8 @@ function createMatcher(rawQuery) {
 
 // ---------------------------------------------------------------------------
 // Snapshot storage and derived indexes
+// Index fields (prefixed with _) are added to the snapshot objects after they are written
+// to disk, and are never serialized: responses pick their fields explicitly.
 // ---------------------------------------------------------------------------
 const ALBUM_FIELDS = ["uri", "name", "artist", "artistUri", "imageUrl", "type", "releaseDate", "trackCount"];
 
@@ -91,10 +104,12 @@ function text(value) {
   return typeof value === "string" ? value : "";
 }
 
-// Entries can carry spotify:image: URIs, which only resolve inside the desktop client
+// Entries can carry spotify:image: URIs, which only resolve inside the desktop client.
+// Anything that is not an https address is dropped.
 function imageUrl(value) {
   const url = text(value);
-  return url.startsWith("spotify:image:") ? "https://i.scdn.co/image/" + url.slice(14) : url;
+  if (url.startsWith("spotify:image:")) return "https://i.scdn.co/image/" + url.slice(14);
+  return url.startsWith("https://") ? url : "";
 }
 
 function cleanAlbums(input) {
@@ -153,7 +168,7 @@ function rebuildIndex() {
   const savedUris = new Set();
   const savedNames = new Set(); // "artist:normalized title", matches any edition
   const savedExactNames = new Set(); // "artist:exact title"
-  const albums = library.albums.map((a) => withSearch({ ...a }, `${a.name} ${a.artist}`));
+  const albums = library.albums.map((a) => withSearch(a, `${a.name} ${a.artist}`));
   for (const a of albums) {
     savedUris.add(a.uri);
     const normTitle = normalizeAlbumTitle(a.name);
@@ -164,7 +179,7 @@ function rebuildIndex() {
     }
   }
 
-  const artists = library.artists.map((a) => withSearch({ ...a }, a.name));
+  const artists = library.artists.map((a) => withSearch(a, a.name));
 
   // Artist lookups fall back to the name for snapshots that carry no artist URI
   const byArtist = new Map();
@@ -185,7 +200,7 @@ function rebuildIndex() {
   };
 
   const items = releases.items.map((r) => {
-    const item = withSearch({ ...r }, `${r.name} ${r.artist}`);
+    const item = withSearch(r, `${r.name} ${r.artist}`);
     item._time = parseDate(r.releaseDate);
     item._artistKey = artistKeyOf(r.artist);
     item._savedKey = `${item._artistKey}:${normalizeAlbumTitle(r.name) || r.name.toLowerCase().trim()}`;
@@ -466,15 +481,23 @@ const QUERIES = {
 
   "/api/releases": (params) => {
     const newestFirst = params.get("sort") !== "oldest";
-    const groupByType = ["date_type", "type"].includes(releases.settings.groupBy);
-    const ordered = cachedOrder(`releases:${newestFirst}:${groupByType}`, () =>
-      [...index.items].sort(
-        (a, b) =>
-          (newestFirst ? b._time - a._time : a._time - b._time) ||
-          (groupByType ? RELEASE_TYPES.indexOf(a.type) - RELEASE_TYPES.indexOf(b.type) : 0) ||
-          a.artist.localeCompare(b.artist)
-      )
-    );
+    // Grouping and order default to the Release List settings that were synced
+    const group = oneOf(params.get("group") || releases.settings.groupBy, GROUP_MODES);
+    const order = oneOf(params.get("order") || releases.settings.releasesOrder, GROUP_ORDERS);
+    const ordered = cachedOrder(`releases:${newestFirst}:${group}:${order}`, () => {
+      const byDate = (a, b) => (newestFirst ? b._time - a._time : a._time - b._time);
+      const byType = (a, b) => RELEASE_TYPES.indexOf(a.type) - RELEASE_TYPES.indexOf(b.type);
+      const byArtist = (a, b) => a.artist.localeCompare(b.artist);
+      const within = order === "artist" ? [byArtist] : order === "album-group" ? [byType, byArtist] : [];
+      const chain = group === "type" ? [byType, byDate, ...within] : group === "date_type" ? [byDate, byType, ...within] : [byDate, ...within];
+      return [...index.items].sort((a, b) => {
+        for (const compare of chain) {
+          const diff = compare(a, b);
+          if (diff) return diff;
+        }
+        return 0;
+      });
+    });
 
     const types = typeSet(params);
     const onlySaved = params.get("saved") === "1";
@@ -497,6 +520,8 @@ const QUERIES = {
     const result = page(list, params, (r) => publicAlbum(r, index.savedUris.has(r.uri)));
     // Day and type totals for the headings of the days on this page
     const wanted = new Set(result.items.map((r) => r.releaseDate));
+    result.group = group;
+    result.typeCounts = countTypes(list);
     result.dayCounts = {};
     for (const r of list) {
       if (!wanted.has(r.releaseDate)) continue;
@@ -556,7 +581,11 @@ const SYNCS = {
     releases = {
       syncedAt: new Date().toISOString(),
       items: cleanAlbums(input.items),
-      settings: { groupColors: cleanColors(settings.groupColors), groupBy: text(settings.groupBy) },
+      settings: {
+        groupColors: cleanColors(settings.groupColors),
+        groupBy: oneOf(settings.groupBy, GROUP_MODES),
+        releasesOrder: oneOf(settings.releasesOrder, GROUP_ORDERS),
+      },
     };
     await writeSnapshot(RELEASES_FILE, releases);
     return { items: releases.items.length };
@@ -684,7 +713,10 @@ if (require.main === module) {
   for (const signal of ["SIGINT", "SIGTERM"]) {
     process.on(signal, () => {
       let open = servers.length;
-      for (const server of servers) server.close(() => --open === 0 && process.exit(0));
+      for (const server of servers) {
+        server.close(() => --open === 0 && process.exit(0));
+        server.closeIdleConnections();
+      }
     });
   }
 }

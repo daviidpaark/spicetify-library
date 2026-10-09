@@ -8,7 +8,7 @@ The two Spicetify apps push a snapshot of what they already have loaded. The web
 
 - **Random Library**: shuffled grid of saved albums, followed artists with their discographies, and a Discover mode for releases that are not in your library. Includes search, sorting, edition grouping, and random album and artist picks.
 - **Release List**: chronological releases from followed artists, grouped by day, with range, type, and In Library filters.
-- Badge colors and feed grouping follow the settings of the Spicetify apps.
+- **Settings**: feed grouping, order within groups, and release type colors follow the Spicetify apps by default and can be overridden per device. Also shows what is stored on the server and when it was last synced.
 - Pages load from the server on demand, so a large catalog stays fast on a phone.
 - Installable to a phone home screen.
 
@@ -23,7 +23,7 @@ The container listens on two ports:
 | `8080` | Read-only website. Safe to put behind a reverse proxy. |
 | `8081` | Same website plus the sync endpoint the Spicetify apps push to. Keep this on your local network. |
 
-Anyone who can reach the sync port can replace the stored snapshot, so do not expose it publicly. The read-only port has no authentication; anyone who can reach it can see your library.
+Anything on your network that can reach the sync port can replace the stored snapshot, so do not expose it publicly. Web pages other than Spotify's desktop client are refused by the browser. The read-only port has no authentication; anyone who can reach it can see your library.
 
 ## Install
 
@@ -59,6 +59,7 @@ To build the image yourself, replace `image:` with `build: .` in a clone of this
 | `PORT` | `8080` | Read-only website port |
 | `SYNC_PORT` | `8081` | Website and sync endpoint port |
 | `DATA_DIR` | `/data` | Where snapshots are stored |
+| `SYNC_ORIGIN` | `https://xpui.app.spotify.com` | Browser origin allowed to push to the sync port (Spotify's desktop client) |
 
 ## Syncing From Spotify
 
@@ -87,4 +88,4 @@ This project is an independent, open-source project and is not affiliated with, 
 
 ## License
 
-[MIT License](LICENSE)
+[MIT License](LICENSE) © 2026 David Park

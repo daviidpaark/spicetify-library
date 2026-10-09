@@ -12,7 +12,7 @@ const ARTIST = { uri: "spotify:artist:artist1", name: "Artist One", imageUrl: "s
 const LIBRARY = {
   albums: [
     { uri: "spotify:album:saved1", name: "First Album", artist: "Artist One", artistUri: ARTIST.uri, type: "album", releaseDate: "2020-05-01", trackCount: 10 },
-    { uri: "spotify:album:saved2", name: "Long Single", artist: "Artist Two", type: "single", releaseDate: "2021-01-01", trackCount: 5 },
+    { uri: "spotify:album:saved2", name: "Long Single", artist: "Artist Two", type: "single", releaseDate: "2021-01-01", trackCount: 5, imageUrl: "http://example.com/tracker.png" },
     { uri: "spotify:playlist:nope", name: "Not an album" },
   ],
   artists: [ARTIST],
@@ -83,7 +83,10 @@ test("the public port rejects pushes", async () => {
 });
 
 test("the sync port validates and stores pushes", async () => {
-  assert.equal((await fetch(syncUrl + "/api/library", { method: "OPTIONS" })).status, 204);
+  const preflight = await fetch(syncUrl + "/api/library", { method: "OPTIONS" });
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get("access-control-allow-origin"), "https://xpui.app.spotify.com");
+  assert.equal((await fetch(publicUrl + "/api/meta")).headers.get("access-control-allow-origin"), null);
   assert.equal((await fetch(syncUrl + "/api/library", { method: "PUT", body: "not json" })).status, 400);
   assert.deepEqual(await (await put(syncUrl, "/api/library", LIBRARY)).json(), { albums: 2, artists: 1 });
   assert.deepEqual(await (await put(syncUrl, "/api/releases", RELEASES)).json(), { items: 5 });
@@ -101,6 +104,8 @@ test("albums are searchable, sortable and paged, and long singles become EPs", a
   assert.deepEqual(sorted.items.map((a) => a.name), ["First Album"]);
   const second = await get(publicUrl, "/api/albums?sort=name-asc&limit=1&offset=1");
   assert.equal(second.items[0].type, "ep");
+  assert.equal(second.items[0].imageUrl, "", "only https image addresses are kept");
+  assert.equal("_search" in second.items[0], false, "index fields stay private");
   assert.equal((await get(publicUrl, "/api/albums?q=artist+two")).total, 1);
 
   const shuffled = await get(publicUrl, "/api/albums?seed=7");
@@ -146,7 +151,22 @@ test("releases filter by range, type and library, with day counts", async () => 
   assert.equal((await get(publicUrl, "/api/releases?sort=oldest")).items[0].releaseDate, "2019-03-01");
 });
 
+test("release grouping follows the synced setting unless the request overrides it", async () => {
+  const synced = await get(publicUrl, "/api/releases");
+  assert.equal(synced.group, "date_type");
+  assert.deepEqual(synced.typeCounts, { single: 1, album: 4 });
+
+  const byType = await get(publicUrl, "/api/releases?group=type");
+  assert.equal(byType.group, "type");
+  assert.deepEqual(byType.items.map((r) => r.type), ["album", "album", "album", "album", "single"]);
+  assert.equal(byType.items[0].releaseDate, "2022-03-01", "newest first inside a type");
+
+  assert.equal((await get(publicUrl, "/api/releases?group=nonsense&order=nonsense")).group, "date");
+  assert.equal((await get(publicUrl, "/api/meta")).releases.settings.releasesOrder, "artist");
+});
+
 test("snapshots are reloaded from disk", async () => {
+  assert.doesNotMatch(fs.readFileSync(path.join(dataDir, "releases.json"), "utf8"), /_search|_time/);
   loadSnapshots();
   const meta = await get(publicUrl, "/api/meta");
   assert.equal(meta.library.albums, 2);

@@ -5,6 +5,21 @@ All notable changes to `spicetify-library` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-10-09
+
+### Added
+- **Settings:** A Settings dialog on both screens with Release List's feed grouping (day, day with type subgroups, or release type) and order within groups, release type color pickers, and a Library Status section showing the stored album, artist, and release counts, last sync times, and server version. Choices are kept per device and default to what the Spicetify apps synced.
+- **By Release Type Grouping:** Release List can now be grouped by release type alone, matching the desktop app.
+
+### Fixed
+- **Sync Origin:** The sync port answered cross-origin requests from any website, so a page opened on a device in the local network could overwrite the snapshots. It now only allows Spotify's desktop client (`SYNC_ORIGIN`).
+- **Image Addresses:** Synced image addresses that are not `https` are dropped.
+- **Memory:** The catalog is no longer held twice in memory.
+- **Shutdown:** Idle connections are closed on stop, so the container exits promptly.
+
+### Changed
+- `GET /api/releases` accepts `group` and `order` and reports `group` and `typeCounts`. Release List now also syncs its order-within-groups setting.
+
 ## [0.1.0] - 2026-10-09
 
 ### Added
