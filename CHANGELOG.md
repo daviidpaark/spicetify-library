@@ -5,6 +5,11 @@ All notable changes to `spicetify-library` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-10-09
+
+### Changed
+- **Icons:** Every icon now comes from a published icon set. The app icon and favicon, the tab bar icons, and the Shuffle button use the same shuffle and calendar icons as the Random Library and Release List sidebar entries, and the In Library check mark is Spotify's own. Sources are credited in the README.
+
 ## [0.1.2] - 2026-10-09
 
 ### Added

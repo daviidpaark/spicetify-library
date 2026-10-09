@@ -77,6 +77,10 @@ node server.js
 
 Set `DATA_DIR` to a local folder when running outside Docker. There are no dependencies to install. Run the tests with `node --test`.
 
+## Icons
+
+Icons come from [Material Icons](https://github.com/google/material-design-icons) (Apache 2.0), [Feather](https://github.com/feathericons/feather) (MIT), and the glyph set Spotify's desktop client exposes through Spicetify (`Spicetify.SVGIcons`). The app icon is the Spicetify shuffle glyph on the page background.
+
 ## Disclaimer
 
 This project is an independent, open-source project and is not affiliated with, sponsored by, or endorsed by Spotify. Spotify is a registered trademark of Spotify AB.
