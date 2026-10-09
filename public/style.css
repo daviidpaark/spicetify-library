@@ -143,6 +143,25 @@ button, input, select { font: inherit; }
 .rl-edition-item:hover { background: rgba(255, 255, 255, 0.18); }
 .rl-edition-item span:last-child { color: #1ed760; flex-shrink: 0; }
 
+/* Phones always show three columns, with a tighter card to fit */
+@media (max-width: 599px) {
+  .rl-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 10px; }
+  .rl-card-artwork-wrapper { margin-bottom: 8px; }
+  .rl-card-title, .rl-artist-name { font-size: 12px; }
+  .rl-card-artist, .rl-artist-label { font-size: 11px; }
+  .rl-card-artist-row { flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 2px; }
+  .rl-card-artist { max-width: 100%; }
+  .rl-card-tracks { display: none; }
+  .rl-card-meta { margin-top: 5px; gap: 4px; }
+  .rl-type-badge, .rl-edition-badge { font-size: 9px; padding: 2px 4px; letter-spacing: 0.3px; }
+  .rl-card-date { font-size: 10px; }
+  .rl-in-library-badge { top: 6px; right: 6px; width: 18px; height: 18px; }
+  .rl-in-library-badge svg { width: 10px; height: 10px; }
+  /* A card is too narrow to anchor the editions list, so it opens as a sheet above the tab bar */
+  .rl-edition-menu { position: fixed; left: 16px; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); min-width: 0; max-width: none; max-height: 50vh; }
+  .rl-edition-item { font-size: 13px; padding: 12px; }
+}
+
 .rl-empty { text-align: center; color: rgba(255, 255, 255, 0.7); padding: 12vh 16px; font-size: 14px; line-height: 1.6; }
 
 /* Bottom tab bar, standing in for Spotify's sidebar entries */

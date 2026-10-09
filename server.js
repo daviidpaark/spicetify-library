@@ -37,6 +37,9 @@ const STATIC_FILES = {
   "/style.css": ["style.css", "text/css; charset=utf-8"],
   "/manifest.webmanifest": ["manifest.webmanifest", "application/manifest+json"],
   "/icon.svg": ["icon.svg", "image/svg+xml"],
+  "/icon-180.png": ["icon-180.png", "image/png"],
+  "/icon-192.png": ["icon-192.png", "image/png"],
+  "/icon-512.png": ["icon-512.png", "image/png"],
 };
 
 // The Spicetify apps push from Spotify's own origin, so the sync port answers CORS preflights
@@ -624,7 +627,7 @@ function loadSnapshots() {
 // ---------------------------------------------------------------------------
 function send(req, res, status, body, headers = {}) {
   const all = { "Cache-Control": "no-cache", ...headers };
-  if (body.length > 1024 && /gzip/.test(req.headers["accept-encoding"] || "")) {
+  if (body.length > 1024 && all["Content-Type"] !== "image/png" && /gzip/.test(req.headers["accept-encoding"] || "")) {
     body = zlib.gzipSync(body);
     all["Content-Encoding"] = "gzip";
     all.Vary = "Accept-Encoding";

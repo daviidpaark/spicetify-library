@@ -74,6 +74,13 @@ test("defaults: an empty data folder serves empty results and the page", async (
   assert.equal((await fetch(publicUrl + "/api/random")).status, 404);
   assert.match(await (await fetch(publicUrl + "/")).text(), /<title>Spotify Library<\/title>/);
   assert.equal((await fetch(publicUrl + "/server.js")).status, 404);
+
+  const manifest = await get(publicUrl, "/manifest.webmanifest");
+  for (const icon of manifest.icons) {
+    const res = await fetch(`${publicUrl}/${icon.src}`);
+    assert.equal(res.status, 200, icon.src);
+    assert.equal(res.headers.get("content-type"), icon.type);
+  }
 });
 
 test("the public port rejects pushes", async () => {
