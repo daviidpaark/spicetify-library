@@ -30,8 +30,11 @@ const RELEASES = {
     release("second", "Second Album"),
     release("secondRemaster", "Second Album (2022 Remaster)", { releaseDate: "2022-03-01" }),
     release("new1", "Brand New", { type: "single", releaseDate: todayStr, trackCount: 1 }),
+    // Same day at different precision, pushed in non-alphabetical artist order
+    release("yearOnly", "Year Only", { artist: "Zed", artistUri: "", releaseDate: "2018" }),
+    release("yearFull", "Year Full", { artist: "Abe", artistUri: "", releaseDate: "2018-01-01" }),
   ],
-  settings: { groupColors: { single: "#abcdef" }, groupBy: "date_type" },
+  settings: { groupColors: { single: "#abcdef" }, groupBy: "date_type", defaultRange: 90, sortOrder: "oldest", allowedTypes: ["single", "bogus", "album"] },
 };
 
 let publicUrl;
@@ -96,12 +99,15 @@ test("the sync port validates and stores pushes", async () => {
   assert.equal((await fetch(publicUrl + "/api/meta")).headers.get("access-control-allow-origin"), null);
   assert.equal((await fetch(syncUrl + "/api/library", { method: "PUT", body: "not json" })).status, 400);
   assert.deepEqual(await (await put(syncUrl, "/api/library", LIBRARY)).json(), { albums: 2, artists: 1 });
-  assert.deepEqual(await (await put(syncUrl, "/api/releases", RELEASES)).json(), { items: 5 });
+  assert.deepEqual(await (await put(syncUrl, "/api/releases", RELEASES)).json(), { items: 7 });
 
   const meta = await get(publicUrl, "/api/meta");
   assert.equal(meta.library.albums, 2);
   assert.deepEqual(meta.library.groupColors, { album: "#112233" });
   assert.equal(meta.releases.settings.groupBy, "date_type");
+  assert.equal(meta.releases.settings.defaultRange, 90);
+  assert.equal(meta.releases.settings.sortOrder, "oldest");
+  assert.deepEqual(meta.releases.settings.allowedTypes, ["album", "single"]);
   assert.ok(fs.existsSync(path.join(dataDir, "library.json")));
 });
 
@@ -138,34 +144,44 @@ test("artist images are rewritten and discographies merge editions", async () =>
 
 test("discover leaves out titles saved in any edition", async () => {
   const data = await get(publicUrl, "/api/discover?types=album,ep,single&sort=name-asc");
-  assert.deepEqual(data.items.map((r) => r.name), ["Brand New", "Second Album (2022 Remaster)"]);
+  assert.deepEqual(data.items.map((r) => r.name), ["Brand New", "Second Album (2022 Remaster)", "Year Full", "Year Only"]);
   assert.equal(data.items[1].editions.length, 2);
-  assert.equal((await get(publicUrl, "/api/discover?types=album")).total, 1);
+  assert.equal((await get(publicUrl, "/api/discover?types=album")).total, 3);
   assert.equal((await get(publicUrl, "/api/random?kind=discover&types=single")).album.name, "Brand New");
 });
 
 test("releases filter by range, type and library, with day counts", async () => {
   const all = await get(publicUrl, "/api/releases");
-  assert.equal(all.total, 5);
+  assert.equal(all.total, 7);
   assert.equal(all.items[0].name, "Brand New");
+  assert.equal(all.items[0].day, todayStr);
   assert.deepEqual(all.dayCounts[todayStr], { total: 1, single: 1 });
 
-  assert.equal((await get(publicUrl, "/api/releases?days=7")).total, 1);
-  assert.equal((await get(publicUrl, "/api/releases?types=album")).total, 4);
+  assert.equal((await get(publicUrl, "/api/releases?from=" + todayStr)).total, 1);
+  assert.equal((await get(publicUrl, "/api/releases?to=2018-12-31")).total, 2, "a bare year falls inside a date range");
+  assert.equal((await get(publicUrl, "/api/releases?types=album")).total, 6);
   assert.equal((await get(publicUrl, "/api/releases?from=2020-01-01&to=2021-12-31")).total, 2);
   const saved = await get(publicUrl, "/api/releases?saved=1");
   assert.deepEqual(saved.items.map((r) => [r.uri, r.isSaved]), [["spotify:album:saved1", true]]);
-  assert.equal((await get(publicUrl, "/api/releases?sort=oldest")).items[0].releaseDate, "2019-03-01");
+  assert.equal((await get(publicUrl, "/api/releases?sort=oldest")).items[0].day, "2018-01-01");
 });
 
 test("release grouping follows the synced setting unless the request overrides it", async () => {
   const synced = await get(publicUrl, "/api/releases");
   assert.equal(synced.group, "date_type");
-  assert.deepEqual(synced.typeCounts, { single: 1, album: 4 });
+  assert.deepEqual(synced.typeCounts, { single: 1, album: 6 });
+
+  // A bare year and the full date are one day, and type groupings keep the synced order
+  const lastTwo = synced.items.slice(-2);
+  assert.deepEqual(lastTwo.map((r) => [r.artist, r.releaseDate, r.day]), [["Zed", "2018", "2018-01-01"], ["Abe", "2018-01-01", "2018-01-01"]]);
+  assert.deepEqual(synced.dayCounts["2018-01-01"], { total: 2, album: 2 });
+  // The plain day timeline applies the order-within-groups setting (artist A-Z by default)
+  const timeline = await get(publicUrl, "/api/releases?group=date");
+  assert.deepEqual(timeline.items.slice(-2).map((r) => r.artist), ["Abe", "Zed"]);
 
   const byType = await get(publicUrl, "/api/releases?group=type");
   assert.equal(byType.group, "type");
-  assert.deepEqual(byType.items.map((r) => r.type), ["album", "album", "album", "album", "single"]);
+  assert.deepEqual(byType.items.map((r) => r.type), ["album", "album", "album", "album", "album", "album", "single"]);
   assert.equal(byType.items[0].releaseDate, "2022-03-01", "newest first inside a type");
 
   assert.equal((await get(publicUrl, "/api/releases?group=nonsense&order=nonsense")).group, "date");
@@ -177,6 +193,6 @@ test("snapshots are reloaded from disk", async () => {
   loadSnapshots();
   const meta = await get(publicUrl, "/api/meta");
   assert.equal(meta.library.albums, 2);
-  assert.equal(meta.releases.count, 5);
+  assert.equal(meta.releases.count, 7);
   assert.equal(meta.releases.settings.groupBy, "date_type");
 });

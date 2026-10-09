@@ -5,6 +5,19 @@ All notable changes to `spicetify-library` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-10-09
+
+### Added
+- **Release List Defaults:** Settings now includes Default Filter Range, Release Date Sorting, and Included Release Types, as in the desktop app. They change the same values as the filter chips. A device that has not changed a filter yet starts from the values set in the desktop app, which Release List now syncs.
+
+### Fixed
+- **Release List Order:** With the day-with-type-subgroups or by-release-type grouping, releases inside each group were re-sorted by artist name. Release List only applies the order-within-groups setting to the plain day timeline and otherwise keeps the catalog order, so the website now does the same and the two lists match.
+- **Range Boundary:** The 7 to 90 day ranges were cut off using the server's clock and time zone. The page now works out the first day of the range in the viewer's time zone, using the same midday rule as Release List.
+- **Partial Dates:** A release dated only by year or month is grouped with the first day of that period instead of getting its own heading.
+
+### Changed
+- `GET /api/releases` takes `from` and `to` days instead of `days`, and returns a normalized `day` for each release.
+
 ## [0.1.3] - 2026-10-09
 
 ### Changed

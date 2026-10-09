@@ -8,7 +8,7 @@ The two Spicetify apps push a snapshot of what they already have loaded. The web
 
 - **Random Library**: shuffled grid of saved albums, followed artists with their discographies, and a Discover mode for releases that are not in your library. Includes search, sorting, edition grouping, and random album and artist picks.
 - **Release List**: chronological releases from followed artists, grouped by day, with range, type, and In Library filters.
-- **Settings**: feed grouping, order within groups, and release type colors follow the Spicetify apps by default and can be overridden per device. Also shows what is stored on the server and when it was last synced.
+- **Settings**: default filter range, release date sorting, included release types, feed grouping, order within groups, and release type colors follow the Spicetify apps by default and can be changed per device. Also shows what is stored on the server and when it was last synced.
 - Pages load from the server on demand, so a large catalog stays fast on a phone.
 - Installable as an app: in Chrome on Android use **Install app** (or **Add to Home screen**) from the menu; in Safari on iOS use **Share → Add to Home Screen**. Installing needs the site served over HTTPS.
 

@@ -20,11 +20,13 @@ const MAX_BODY_BYTES = 64 * 1024 * 1024;
 const MAX_PAGE_SIZE = 200;
 const MAX_ORDER_CACHE = 8;
 const EP_MIN_TRACKS = 4;
-const DAY_MS = 86400000;
 const RELEASE_TYPES = ["album", "ep", "single"];
 // Release List's feed grouping and order-within-group settings; the first entry is the default
 const GROUP_MODES = ["date", "date_type", "type"];
 const GROUP_ORDERS = ["artist", "album-group", "time"];
+// Release List's default filter range in days (0 is All Time) and release date sorting
+const DEFAULT_RANGES = [30, 7, 14, 60, 90, 0];
+const SORT_ORDERS = ["newest", "oldest"];
 
 function oneOf(value, allowed) {
   return allowed.includes(value) ? value : allowed[0];
@@ -145,6 +147,11 @@ function cleanArtists(input) {
     .map((entry) => ({ uri: entry.uri, name: text(entry.name), imageUrl: imageUrl(entry.imageUrl) }));
 }
 
+function cleanTypes(input) {
+  const types = Array.isArray(input) ? RELEASE_TYPES.filter((type) => input.includes(type)) : [];
+  return types.length ? types : [...RELEASE_TYPES];
+}
+
 function cleanColors(input) {
   if (!input || typeof input !== "object") return null;
   const colors = {};
@@ -154,9 +161,13 @@ function cleanColors(input) {
   return colors;
 }
 
-function parseDate(dateStr) {
-  const [year, month = 1, day = 1] = dateStr.split("-").map(Number);
-  return year > 0 ? new Date(year, month - 1, day).getTime() : 0;
+// Release dates can be a bare year or year-month; like Release List, a missing month or day
+// counts as the first, so "2018" and "2018-01-01" are the same day ("" when there is no date)
+function normalizeDay(dateStr) {
+  const [year, month, day] = dateStr.split("T")[0].split("-").map(Number);
+  if (!(year > 0)) return "";
+  const pad = (value) => String(value > 0 ? value : 1).padStart(2, "0");
+  return `${String(year).padStart(4, "0")}-${pad(month)}-${pad(day)}`;
 }
 
 function withSearch(item, searchText) {
@@ -204,7 +215,7 @@ function rebuildIndex() {
 
   const items = releases.items.map((r) => {
     const item = withSearch(r, `${r.name} ${r.artist}`);
-    item._time = parseDate(r.releaseDate);
+    item._day = normalizeDay(r.releaseDate);
     item._artistKey = artistKeyOf(r.artist);
     item._savedKey = `${item._artistKey}:${normalizeAlbumTitle(r.name) || r.name.toLowerCase().trim()}`;
     addByArtist(r.artistUri || "name:" + item._artistKey, item);
@@ -488,11 +499,13 @@ const QUERIES = {
     const group = oneOf(params.get("group") || releases.settings.groupBy, GROUP_MODES);
     const order = oneOf(params.get("order") || releases.settings.releasesOrder, GROUP_ORDERS);
     const ordered = cachedOrder(`releases:${newestFirst}:${group}:${order}`, () => {
-      const byDate = (a, b) => (newestFirst ? b._time - a._time : a._time - b._time);
+      const byDate = (a, b) => (newestFirst ? -1 : 1) * a._day.localeCompare(b._day);
       const byType = (a, b) => RELEASE_TYPES.indexOf(a.type) - RELEASE_TYPES.indexOf(b.type);
       const byArtist = (a, b) => a.artist.localeCompare(b.artist);
+      // Release List only applies the order-within-groups setting to the plain day timeline;
+      // the type groupings keep the order of the synced catalog (the sort is stable)
       const within = order === "artist" ? [byArtist] : order === "album-group" ? [byType, byArtist] : [];
-      const chain = group === "type" ? [byType, byDate, ...within] : group === "date_type" ? [byDate, byType, ...within] : [byDate, ...within];
+      const chain = group === "type" ? [byType, byDate] : group === "date_type" ? [byDate, byType] : [byDate, ...within];
       return [...index.items].sort((a, b) => {
         for (const compare of chain) {
           const diff = compare(a, b);
@@ -504,8 +517,7 @@ const QUERIES = {
 
     const types = typeSet(params);
     const onlySaved = params.get("saved") === "1";
-    const days = Number(params.get("days")) || 0;
-    const cutoff = days > 0 ? Date.now() - days * DAY_MS : 0;
+    // The page works out range boundaries in the viewer's time zone and sends them as days
     const from = params.get("from") || "";
     const to = params.get("to") || "";
     const matcher = createMatcher(params.get("q"));
@@ -513,22 +525,21 @@ const QUERIES = {
     const list = ordered.filter(
       (r) =>
         types.has(r.type) &&
-        r._time >= cutoff &&
-        (!from || r.releaseDate >= from) &&
-        (!to || r.releaseDate <= to) &&
+        (!from || r._day >= from) &&
+        (!to || (r._day !== "" && r._day <= to)) &&
         (!onlySaved || index.savedUris.has(r.uri)) &&
         (!matcher || matcher(r))
     );
 
-    const result = page(list, params, (r) => publicAlbum(r, index.savedUris.has(r.uri)));
+    const result = page(list, params, (r) => ({ ...publicAlbum(r, index.savedUris.has(r.uri)), day: r._day }));
     // Day and type totals for the headings of the days on this page
-    const wanted = new Set(result.items.map((r) => r.releaseDate));
+    const wanted = new Set(result.items.map((r) => r.day));
     result.group = group;
     result.typeCounts = countTypes(list);
     result.dayCounts = {};
     for (const r of list) {
-      if (!wanted.has(r.releaseDate)) continue;
-      const counts = (result.dayCounts[r.releaseDate] ||= { total: 0 });
+      if (!wanted.has(r._day)) continue;
+      const counts = (result.dayCounts[r._day] ||= { total: 0 });
       counts.total++;
       counts[r.type] = (counts[r.type] || 0) + 1;
     }
@@ -588,6 +599,9 @@ const SYNCS = {
         groupColors: cleanColors(settings.groupColors),
         groupBy: oneOf(settings.groupBy, GROUP_MODES),
         releasesOrder: oneOf(settings.releasesOrder, GROUP_ORDERS),
+        defaultRange: oneOf(settings.defaultRange, DEFAULT_RANGES),
+        sortOrder: oneOf(settings.sortOrder, SORT_ORDERS),
+        allowedTypes: cleanTypes(settings.allowedTypes),
       },
     };
     await writeSnapshot(RELEASES_FILE, releases);

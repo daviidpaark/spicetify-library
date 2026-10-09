@@ -46,11 +46,16 @@ const grid = $("grid");
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
+// False on a device that has never changed a Release List filter; it then starts from the
+// range, sorting and release types set in the desktop app
+let hasSavedFilters = false;
+
 function loadState() {
   let saved = {};
   try {
     saved = JSON.parse(localStorage.getItem(STORAGE_STATE)) || {};
   } catch {}
+  hasSavedFilters = Boolean(saved.rel);
   return {
     mode: MODES[saved.mode] ? saved.mode : "albums",
     seed: saved.seed || newSeed(),
@@ -515,6 +520,17 @@ async function showPick() {
 // ---------------------------------------------------------------------------
 // Release List
 // ---------------------------------------------------------------------------
+// First day inside an N-day range. Release List dates a release at midday local time and
+// keeps it when that is within the last N days, so the cut-off day depends on the time of day.
+function rangeStart(days) {
+  const cutoff = new Date(Date.now() - days * DAY_MS);
+  if (cutoff.getHours() >= 12 && (cutoff.getHours() > 12 || cutoff.getMinutes() > 0 || cutoff.getSeconds() > 0)) {
+    cutoff.setDate(cutoff.getDate() + 1);
+  }
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${cutoff.getFullYear()}-${pad(cutoff.getMonth() + 1)}-${pad(cutoff.getDate())}`;
+}
+
 function releaseCount(count) {
   return count === 1 ? "1 release" : `${count || 0} releases`;
 }
@@ -585,7 +601,7 @@ function renderReleases() {
 
   const load = () => {
     const params = { q: queries.releases, sort: rel.sort, types: rel.types.join(",") };
-    if (rel.days > 0) params.days = rel.days;
+    if (rel.days > 0) params.from = rangeStart(rel.days);
     if (rel.days === -1) Object.assign(params, { from: rel.from, to: rel.to });
     if (rel.saved) params.saved = 1;
     if (state.settings.groupBy) params.group = state.settings.groupBy;
@@ -597,7 +613,7 @@ function renderReleases() {
       if (first) subtitle.textContent = `${data.total} releases${syncedSuffix(meta.releases.syncedAt)}`;
       const fragment = document.createDocumentFragment();
       for (const item of data.items) {
-        const counts = data.dayCounts[item.releaseDate] || {};
+        const counts = data.dayCounts[item.day] || {};
         if (data.group === "type") {
           // One section per release type, with no day headings
           if (item.type !== lastType) {
@@ -607,10 +623,10 @@ function renderReleases() {
             fragment.appendChild(group);
           }
         } else {
-          if (item.releaseDate !== lastDate) {
-            lastDate = item.releaseDate;
+          if (item.day !== lastDate) {
+            lastDate = item.day;
             lastType = null;
-            const group = el("div", "rl-group-header", dayHeader(item.releaseDate));
+            const group = el("div", "rl-group-header", dayHeader(item.day));
             group.appendChild(el("span", "rl-group-count", releaseCount(counts.total)));
             fragment.appendChild(group);
           }
@@ -639,6 +655,12 @@ function applyColors() {
     library: { ...DEFAULT_COLORS.library, ...meta.library.groupColors, ...custom },
     releases: { ...DEFAULT_COLORS.releases, ...meta.releases.settings?.groupColors, ...custom },
   };
+}
+
+function updateFilters(changes) {
+  Object.assign(state.rel, changes);
+  saveState();
+  render();
 }
 
 function settingsSection(title) {
@@ -677,11 +699,45 @@ function openSettings() {
   card.textContent = "";
   card.appendChild(el("div", "rl-pick-title", "Settings"));
 
+  const general = settingsSection("General");
+  const range = el("label", "rl-settings-field", "Default Filter Range");
+  const rangeSelect = el("select", "rl-sort");
+  for (const [days, label] of RANGES) {
+    // Custom is picked from the range chips, where its dates are entered
+    if (days !== -1 || state.rel.days === -1) rangeSelect.add(new Option(label, days));
+  }
+  rangeSelect.value = state.rel.days;
+  rangeSelect.addEventListener("change", () => updateFilters({ days: Number(rangeSelect.value) }));
+  range.appendChild(rangeSelect);
+  const sorting = el("label", "rl-settings-field", "Release Date Sorting");
+  const sortingSelect = el("select", "rl-sort");
+  sortingSelect.add(new Option("Newest Releases First", "newest"));
+  sortingSelect.add(new Option("Oldest Releases First", "oldest"));
+  sortingSelect.value = state.rel.sort === "oldest" ? "oldest" : "newest";
+  sortingSelect.addEventListener("change", () => updateFilters({ sort: sortingSelect.value }));
+  sorting.appendChild(sortingSelect);
+  general.append(range, sorting, el("div", "rl-settings-note", "What Release List opens with on this device. The filter chips change the same values."));
+
+  const included = settingsSection("Included Release Types");
+  const includedRow = el("div", "rl-chip-row");
+  for (const type of RELEASE_TYPES) {
+    const active = state.rel.types.includes(type);
+    includedRow.appendChild(
+      button("rl-chip" + (active ? " active" : ""), (active ? "✓ " : "") + TYPE_PLURALS[type], () => {
+        const next = active ? state.rel.types.filter((t) => t !== type) : [...state.rel.types, type];
+        if (next.length === 0) return;
+        updateFilters({ types: next });
+        openSettings();
+      })
+    );
+  }
+  included.appendChild(includedRow);
+
   const grouping = settingsSection("Feed Grouping");
   grouping.append(
     settingsSelect("Group Feed By:", GROUP_MODES, "groupBy"),
     settingsSelect("Order Within Groups:", GROUP_ORDERS, "releasesOrder"),
-    el("div", "rl-settings-note", "Applies to Release List. Defaults follow the desktop app.")
+    el("div", "rl-settings-note", "Defaults follow the desktop app.")
   );
 
   const colorSection = settingsSection("Release Type Colors");
@@ -726,7 +782,7 @@ function openSettings() {
 
   const footer = el("div", "rl-pick-actions");
   footer.appendChild(button("rl-btn primary", "Done", () => ($("settingsModal").hidden = true)));
-  card.append(grouping, colorSection, status, footer);
+  card.append(general, grouping, included, colorSection, status, footer);
   $("settingsModal").hidden = false;
 }
 
@@ -768,6 +824,12 @@ api("meta")
   .then((data) => {
     meta = data;
     applyColors();
+    const synced = data.releases.settings || {};
+    if (!hasSavedFilters) {
+      if (RANGES.some(([days]) => days === synced.defaultRange)) state.rel.days = synced.defaultRange;
+      if (synced.sortOrder) state.rel.sort = synced.sortOrder;
+      if (Array.isArray(synced.allowedTypes) && synced.allowedTypes.length) state.rel.types = synced.allowedTypes;
+    }
   })
   .catch(() => {})
   .finally(render);
