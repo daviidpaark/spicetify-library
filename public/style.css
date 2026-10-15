@@ -56,6 +56,8 @@ button, input, select { font: inherit; }
   display: inline-flex; align-items: center; gap: 6px;
 }
 .rl-filter-pill.active { background: #fff; color: #121212; border-color: #fff; }
+.rl-filter-pill.saved { color: #1ed760; border-color: rgba(30, 215, 96, 0.4); background: rgba(30, 215, 96, 0.08); }
+.rl-filter-pill.saved.active { background: #1ed760; color: #121212; border-color: #1ed760; }
 .rl-filter-pill.editions { color: #f87171; border-color: rgba(248, 113, 113, 0.45); }
 .rl-filter-pill.editions.active { background: #f87171; color: #121212; border-color: #f87171; }
 .rl-pill-count { font-size: 11px; font-weight: 600; opacity: 0.6; }

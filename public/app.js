@@ -61,6 +61,7 @@ function loadState() {
     seed: saved.seed || newSeed(),
     sort: { albums: "shuffle", artists: "shuffle", discover: "shuffle", ...saved.sort },
     discoverTypes: Array.isArray(saved.discoverTypes) && saved.discoverTypes.length ? saved.discoverTypes : ["album", "ep"],
+    discoverSaved: saved.discoverSaved === true,
     artistFilter: saved.artistFilter || "all",
     rel: { days: 30, from: "", to: "", types: [...RELEASE_TYPES], saved: false, sort: "newest", ...saved.rel },
     // View settings for this device; null follows what the Spicetify apps synced
@@ -364,18 +365,32 @@ function renderLibrary() {
       typePills[type] = pill.appendChild(el("span", "rl-pill-count"));
       pills.appendChild(pill);
     }
+    const savedPill = button("rl-filter-pill saved" + (state.discoverSaved ? " active" : ""), "✓ In Library", () => {
+      state.discoverSaved = !state.discoverSaved;
+      saveState();
+      render();
+    });
+    typePills.saved = savedPill.appendChild(el("span", "rl-pill-count"));
+    pills.appendChild(savedPill);
     view.appendChild(pills);
   }
 
   const load = () => {
     const params = { q: queries[mode], sort: state.sort[mode], seed: state.seed };
-    if (mode === "discover") params.types = state.discoverTypes.join(",");
+    if (mode === "discover") {
+      params.types = state.discoverTypes.join(",");
+      if (state.discoverSaved) params.saved = 1;
+    }
     const shuffled = state.sort[mode] === "shuffle" ? " shuffled" : "";
     startFeed(mode, params, (data, first) => {
       if (first) {
-        const noun = { albums: "saved albums", artists: "followed artists", discover: "releases not in your library" }[mode];
+        const noun = {
+          albums: "saved albums",
+          artists: "followed artists",
+          discover: state.discoverSaved ? "releases" : "releases not in your library",
+        }[mode];
         subtitle.textContent = `${data.total} ${noun}${shuffled}${syncedSuffix(mode === "discover" ? meta.releases.syncedAt : meta.library.syncedAt)}`;
-        for (const type of RELEASE_TYPES) if (typePills[type]) typePills[type].textContent = data.counts?.[type] || 0;
+        for (const key in typePills) typePills[key].textContent = data.counts?.[key] || 0;
       }
       const fragment = document.createDocumentFragment();
       for (const item of data.items) fragment.appendChild(mode === "artists" ? artistCard(item) : albumCard(item, colors.library));
@@ -387,7 +402,7 @@ function renderLibrary() {
 
   const toolbar = el("div", "rl-toolbar");
   toolbar.append(
-    searchInput(mode, MODES[mode].search, load),
+    searchInput(mode, mode === "discover" && state.discoverSaved ? "Search releases or artists…" : MODES[mode].search, load),
     sortSelect(mode === "artists" ? ARTIST_SORTS : ALBUM_SORTS, state.sort[mode], (value) => {
       state.sort[mode] = value;
       saveState();
@@ -495,7 +510,10 @@ async function randomPick() {
     location.hash = "#/library/artist/" + data.artist.uri.split(":").pop();
     return;
   }
-  lastPick = state.mode === "discover" ? { kind: "discover", types: state.discoverTypes.join(",") } : { kind: "album" };
+  lastPick =
+    state.mode === "discover"
+      ? { kind: "discover", types: state.discoverTypes.join(","), ...(state.discoverSaved ? { saved: 1 } : {}) }
+      : { kind: "album" };
   showPick();
 }
 

@@ -150,6 +150,24 @@ test("discover leaves out titles saved in any edition", async () => {
   assert.equal((await get(publicUrl, "/api/random?kind=discover&types=single")).album.name, "Brand New");
 });
 
+test("discover includes saved titles with saved=1", async () => {
+  const data = await get(publicUrl, "/api/discover?types=album,ep,single&sort=name-asc&saved=1");
+  assert.deepEqual(data.items.map((r) => r.name), [
+    "Brand New",
+    "First Album (Deluxe Edition)",
+    "Second Album (2022 Remaster)",
+    "Year Full",
+    "Year Only",
+  ]);
+  assert.equal(data.items[1].isSaved, true);
+  assert.equal(data.items[1].editions.find((e) => e.isSaved).uri, "spotify:album:saved1");
+  assert.equal(data.items[0].isSaved, undefined);
+  assert.equal(data.counts.saved, 1);
+  assert.equal((await get(publicUrl, "/api/discover?types=album")).counts.saved, 1);
+  assert.equal((await get(publicUrl, "/api/discover?types=single")).counts.saved, 0);
+  assert.equal((await get(publicUrl, "/api/discover?types=album&saved=1")).total, 4);
+});
+
 test("releases filter by range, type and library, with day counts", async () => {
   const all = await get(publicUrl, "/api/releases");
   assert.equal(all.total, 7);

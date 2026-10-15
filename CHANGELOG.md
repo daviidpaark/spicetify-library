@@ -5,6 +5,14 @@ All notable changes to `spicetify-library` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2026-10-14
+
+### Added
+- **Discover In Library Toggle:** Discover has an **In Library** pill, as in Random Library. Turning it on shows the full catalog, with saved releases marked by the In Library badge; Random Album follows the same selection.
+
+### Changed
+- `GET /api/discover` and `GET /api/random?kind=discover` take `saved=1` to include saved releases. Discover counts include `saved`, the number of saved releases for the selected types.
+
 ## [0.1.4] - 2026-10-09
 
 ### Added

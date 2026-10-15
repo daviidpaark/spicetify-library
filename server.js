@@ -225,7 +225,7 @@ function rebuildIndex() {
   index = { albums, artists, items, byArtist, savedUris, savedNames, savedExactNames, artistKeyOf, discover: null };
 }
 
-// Discover pool: catalog releases with no edition saved, editions of one title grouped
+// Discover pool: catalog releases flagged by whether any edition is saved, editions of one title grouped
 function getDiscover() {
   if (index.discover) return index.discover;
   const groups = new Map();
@@ -238,9 +238,9 @@ function getDiscover() {
 
   const pool = [];
   for (const [savedKey, editions] of groups) {
-    if (index.savedNames.has(savedKey) || editions.some((e) => index.savedUris.has(e.uri))) continue;
+    const isSaved = index.savedNames.has(savedKey) || editions.some((e) => index.savedUris.has(e.uri));
     if (editions.length === 1) {
-      pool.push(editions[0]);
+      pool.push({ ...editions[0], isSaved });
       continue;
     }
     // Same preference as the artist view: deluxe, then remaster, then newest
@@ -254,7 +254,8 @@ function getDiscover() {
     pool.push({
       ...ranked[0].release,
       type: editions.some((e) => e.type === "album") ? "album" : ranked[0].release.type,
-      editions: ranked.map(({ release }) => ({ uri: release.uri, name: release.name, isSaved: false })),
+      isSaved,
+      editions: ranked.map(({ release }) => ({ uri: release.uri, name: release.name, isSaved: index.savedUris.has(release.uri) })),
     });
   }
   index.discover = pool;
@@ -429,6 +430,13 @@ function countTypes(list) {
   return counts;
 }
 
+// Discover releases for the request: unsaved only, or the full catalog with saved=1
+function discoverPool(params) {
+  const withSaved = params.get("saved") === "1";
+  const pool = getDiscover();
+  return { withSaved, pool: withSaved ? pool : cachedOrder("discover-unsaved", () => pool.filter((r) => !r.isSaved)) };
+}
+
 function pick(list) {
   return list[Math.floor(Math.random() * list.length)];
 }
@@ -484,13 +492,15 @@ const QUERIES = {
 
   "/api/discover": (params) => {
     const types = typeSet(params);
-    const typesKey = [...types].sort().join(",");
-    const pool = getDiscover();
-    const filtered = cachedOrder(`discover-types:${typesKey}`, () => pool.filter((r) => types.has(r.type)));
-    let list = orderedList(`discover:${typesKey}`, filtered, params, shuffleByArtist);
+    const { withSaved, pool } = discoverPool(params);
+    const key = `${withSaved ? "all" : "unsaved"}:${[...types].sort().join(",")}`;
+    const filtered = cachedOrder(`discover-types:${key}`, () => pool.filter((r) => types.has(r.type)));
+    let list = orderedList(`discover:${key}`, filtered, params, shuffleByArtist);
     const matcher = createMatcher(params.get("q"));
     if (matcher) list = list.filter(matcher);
-    return { counts: countTypes(pool), ...page(list, params, (r) => publicAlbum(r, false)) };
+    const counts = countTypes(pool);
+    counts.saved = getDiscover().filter((r) => r.isSaved && types.has(r.type)).length;
+    return { counts, ...page(list, params, (r) => publicAlbum(r, r.isSaved)) };
   },
 
   "/api/releases": (params) => {
@@ -553,7 +563,7 @@ const QUERIES = {
       // Pick an artist first so a large discography is not favored, then one of their releases
       const types = typeSet(params);
       const byArtist = new Map();
-      for (const r of getDiscover()) {
+      for (const r of discoverPool(params).pool) {
         if (!types.has(r.type)) continue;
         const key = r.artistUri || r.artist;
         const list = byArtist.get(key);
@@ -561,7 +571,8 @@ const QUERIES = {
         else byArtist.set(key, [r]);
       }
       if (byArtist.size === 0) return null;
-      return { album: publicAlbum(pick(pick([...byArtist.values()])), false) };
+      const album = pick(pick([...byArtist.values()]));
+      return { album: publicAlbum(album, album.isSaved) };
     }
     return index.albums.length ? { album: publicAlbum(pick(index.albums), true) } : null;
   },
