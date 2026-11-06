@@ -1,6 +1,8 @@
 // Mobile copy of the Random Library and Release List Spicetify apps. All data comes from the
 // server in pages; albums and artists open in Spotify through open.spotify.com links.
 const BATCH_SIZE = 60;
+const MAX_PAGE_SIZE = 200;
+const SYNC_RETRY_MS = 2000;
 const SEARCH_DEBOUNCE_MS = 200;
 const DAY_MS = 86400000;
 const STORAGE_STATE = "spicetify-library:state";
@@ -85,6 +87,8 @@ const artistHistory = { stack: [], index: -1 };
 let meta = { library: { albums: 0, artists: 0 }, releases: { count: 0, settings: {} } };
 let colors = DEFAULT_COLORS;
 let feed = null;
+let currentLoad = null;
+let pendingRestore = null;
 let lastPick = null;
 let openMenu = null;
 
@@ -269,11 +273,15 @@ function artistCard(artist) {
 // ---------------------------------------------------------------------------
 // Paged feed with infinite scroll
 // ---------------------------------------------------------------------------
+// A restore reloads the feed in place after a sync: the old cards stay until the new ones
+// arrive, as many items as were loaded come back, and the scroll position is kept
 function startFeed(path, params, onPage) {
   closeEditionMenu();
-  grid.textContent = "";
+  const restore = pendingRestore;
+  pendingRestore = null;
+  if (!restore) grid.textContent = "";
   $("empty").hidden = true;
-  feed = { path, params, onPage, offset: 0, done: false, loading: false };
+  feed = { path, params, onPage, offset: 0, done: false, loading: false, restore };
   loadMore();
 }
 
@@ -281,23 +289,71 @@ async function loadMore() {
   const current = feed;
   if (!current || current.loading || current.done) return;
   current.loading = true;
+  const restore = current.restore;
+  const limit = restore ? Math.min(MAX_PAGE_SIZE, Math.max(BATCH_SIZE, restore.count - current.offset)) : BATCH_SIZE;
   let data;
   try {
-    data = await api(current.path, { ...current.params, offset: current.offset, limit: BATCH_SIZE });
+    data = await api(current.path, { ...current.params, offset: current.offset, limit });
   } catch {
-    if (current === feed) showEmpty("Could not reach the server.");
+    if (current === feed && !restore) showEmpty("Could not reach the server.");
     return;
   }
   if (current !== feed) return;
 
   const first = current.offset === 0;
+  if (first && restore) grid.textContent = "";
   current.offset += data.items.length;
   current.done = data.items.length === 0 || current.offset >= data.total;
   current.loading = false;
   current.onPage(data, first);
   if (first && data.total === 0) showEmpty(current.emptyText || "Nothing matches.");
-  if ($("sentinel").getBoundingClientRect().top < innerHeight + 800) loadMore();
+  if (restore && (current.done || current.offset >= restore.count)) {
+    current.restore = null;
+    window.scrollTo(0, restore.scrollY);
+  }
+  if (current.restore || $("sentinel").getBoundingClientRect().top < innerHeight + 800) loadMore();
 }
+
+// Pick up pushes from the desktop apps while the page is open: the server announces each push
+// on an event stream, which stays closed while the tab is hidden
+let events = null;
+let syncRetry = null;
+
+async function checkForSync() {
+  clearTimeout(syncRetry);
+  if (document.hidden) return;
+  const busy = () => !currentLoad || !feed || feed.loading || openMenu;
+  if (busy()) {
+    syncRetry = setTimeout(checkForSync, SYNC_RETRY_MS);
+    return;
+  }
+  const data = await api("meta").catch(() => null);
+  if (!data) return;
+  if (data.library.syncedAt === meta.library.syncedAt && data.releases.syncedAt === meta.releases.syncedAt) return;
+  if (busy()) {
+    syncRetry = setTimeout(checkForSync, SYNC_RETRY_MS);
+    return;
+  }
+  meta = data;
+  applyColors();
+  pendingRestore = { count: feed.offset, scrollY: window.scrollY };
+  currentLoad();
+}
+
+function connectEvents() {
+  if (events || document.hidden || !window.EventSource) return;
+  events = new EventSource("api/events");
+  events.addEventListener("sync", checkForSync);
+  // Also fires on every reconnect, covering pushes missed while disconnected
+  events.addEventListener("open", checkForSync);
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) return connectEvents();
+  events?.close();
+  events = null;
+  clearTimeout(syncRetry);
+});
 
 function showEmpty(text) {
   $("empty").textContent = text;
@@ -410,6 +466,7 @@ function renderLibrary() {
     })
   );
   view.appendChild(toolbar);
+  currentLoad = load;
   load();
 }
 
@@ -498,6 +555,7 @@ function renderArtist(artistId) {
     });
     feed.emptyText = "No releases found for this artist.";
   };
+  currentLoad = load;
   load();
 }
 
@@ -661,6 +719,7 @@ function renderReleases() {
     });
     if (!meta.releases.count) feed.emptyText = "Nothing synced yet. Press Refresh in Release List on the desktop.";
   };
+  currentLoad = load;
   load();
 }
 
@@ -812,6 +871,7 @@ function render() {
   const releasesTab = tab === "releases";
   for (const link of $("tabbar").children) link.classList.toggle("active", (link.dataset.tab === "releases") === releasesTab);
   view.textContent = "";
+  currentLoad = null;
   if (releasesTab) renderReleases();
   else if (section === "artist" && id) {
     state.mode = "artists";
@@ -850,4 +910,7 @@ api("meta")
     }
   })
   .catch(() => {})
-  .finally(render);
+  .finally(() => {
+    render();
+    connectEvents();
+  });

@@ -6,7 +6,7 @@ const path = require("node:path");
 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "spicetify-library-"));
 process.env.DATA_DIR = dataDir;
-const { createServer, loadSnapshots } = require("../server.js");
+const { createServer, loadSnapshots, closeEvents } = require("../server.js");
 
 const ARTIST = { uri: "spotify:artist:artist1", name: "Artist One", imageUrl: "spotify:image:abc" };
 const LIBRARY = {
@@ -62,6 +62,7 @@ before(async () => {
 });
 
 after(() => {
+  closeEvents();
   for (const server of servers) server.close();
   fs.rmSync(dataDir, { recursive: true, force: true });
 });
@@ -84,6 +85,23 @@ test("defaults: an empty data folder serves empty results and the page", async (
     assert.equal(res.status, 200, icon.src);
     assert.equal(res.headers.get("content-type"), icon.type);
   }
+});
+
+test("open pages hear about pushes on the event stream", async () => {
+  const controller = new AbortController();
+  const res = await fetch(publicUrl + "/api/events", { signal: controller.signal });
+  assert.equal(res.headers.get("content-type"), "text/event-stream");
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  const heard = (async () => {
+    while (!text.includes("event: sync")) text += decoder.decode((await reader.read()).value);
+  })();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal((await put(syncUrl, "/api/library", { albums: [], artists: [] })).status, 200);
+  await heard;
+  assert.match(text, /event: sync\ndata: library\n\n/);
+  controller.abort();
 });
 
 test("the public port rejects pushes", async () => {

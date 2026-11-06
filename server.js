@@ -18,6 +18,8 @@ const LIBRARY_FILE = path.join(DATA_DIR, "library.json");
 const RELEASES_FILE = path.join(DATA_DIR, "releases.json");
 const MAX_BODY_BYTES = 64 * 1024 * 1024;
 const MAX_PAGE_SIZE = 200;
+const MAX_EVENT_CLIENTS = 200;
+const EVENT_PING_MS = 25000;
 const MAX_ORDER_CACHE = 8;
 const EP_MIN_TRACKS = 4;
 const RELEASE_TYPES = ["album", "ep", "single"];
@@ -683,6 +685,34 @@ function readBody(req) {
   });
 }
 
+// Open pages listen here and reload their view as soon as a push lands
+const eventClients = new Set();
+let eventPing = null;
+
+function handleEvents(req, res) {
+  if (eventClients.size >= MAX_EVENT_CLIENTS) return send(req, res, 503, "too many listeners");
+  res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "X-Accel-Buffering": "no" });
+  res.write("retry: 5000\n\n");
+  eventClients.add(res);
+  if (!eventPing) eventPing = setInterval(() => broadcast(": ping"), EVENT_PING_MS).unref();
+  req.on("close", () => {
+    eventClients.delete(res);
+    if (eventClients.size === 0) {
+      clearInterval(eventPing);
+      eventPing = null;
+    }
+  });
+}
+
+function broadcast(message) {
+  for (const client of eventClients) client.write(message + "\n\n");
+}
+
+function closeEvents() {
+  for (const client of eventClients) client.end();
+  eventClients.clear();
+}
+
 async function handleSync(req, res, sync) {
   if (req.method === "OPTIONS") return send(req, res, 204, "", CORS_HEADERS);
   let body;
@@ -695,6 +725,7 @@ async function handleSync(req, res, sync) {
   const result = await sync(body);
   rebuildIndex();
   sendJson(req, res, 200, result, CORS_HEADERS);
+  broadcast(`event: sync\ndata: ${new URL(req.url, "http://localhost").pathname.split("/").pop()}`);
 }
 
 function createServer(allowWrite) {
@@ -710,6 +741,8 @@ function createServer(allowWrite) {
       });
       return;
     }
+
+    if (url.pathname === "/api/events") return handleEvents(req, res);
 
     const query = QUERIES[url.pathname];
     if (query) {
@@ -740,6 +773,7 @@ if (require.main === module) {
 
   for (const signal of ["SIGINT", "SIGTERM"]) {
     process.on(signal, () => {
+      closeEvents();
       let open = servers.length;
       for (const server of servers) {
         server.close(() => --open === 0 && process.exit(0));
@@ -749,4 +783,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { createServer, loadSnapshots };
+module.exports = { createServer, loadSnapshots, closeEvents };

@@ -67,7 +67,9 @@ To build the image yourself, replace `image:` with `build: .` in a clone of this
 2. Enter the sync address, for example `http://192.168.1.100:8081`. The address is shared between the two apps.
 3. Press **Sync Now** (Random Library) or **Sync to Web Now** (Release List).
 
-After that, each app also pushes automatically whenever you press its **Refresh** button. Random Library sends saved albums and followed artists; Release List sends its release catalog.
+After that, each app also pushes automatically whenever you press its **Refresh** button. Random Library sends saved albums and followed artists; Release List sends its release catalog. Random Library also pushes in the background whenever Spotify is open and you save or remove an album or follow or unfollow an artist, even when its page is closed.
+
+Open pages update on their own: the server announces each push on `GET /api/events`, and the page reloads the current view in place, keeping filters, search and scroll position. Reverse proxies need to pass that event stream through unbuffered; Caddy and nginx (which honors the `X-Accel-Buffering: no` header) do by default.
 
 ## Development
 

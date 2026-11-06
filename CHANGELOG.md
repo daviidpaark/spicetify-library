@@ -5,6 +5,11 @@ All notable changes to `spicetify-library` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2026-11-06
+
+### Added
+- **Live Updates:** Open pages update on their own. The server announces each push from Random Library or Release List on a new `GET /api/events` stream, and the page reloads the current view within a second or two, keeping filters, search and scroll position. The stream closes while the tab is hidden and reconnects, checking for missed pushes, when you come back.
+
 ## [0.1.5] - 2026-10-14
 
 ### Added
