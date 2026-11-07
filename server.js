@@ -55,6 +55,13 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Private-Network": "true",
 };
 
+const SECURITY_HEADERS = {
+  "Content-Security-Policy":
+    "default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "same-origin",
+};
+
 // ---------------------------------------------------------------------------
 // Title and search normalization (kept identical to Random Library)
 // ---------------------------------------------------------------------------
@@ -653,7 +660,7 @@ function loadSnapshots() {
 // HTTP
 // ---------------------------------------------------------------------------
 function send(req, res, status, body, headers = {}) {
-  const all = { "Cache-Control": "no-cache", ...headers };
+  const all = { "Cache-Control": "no-cache", ...SECURITY_HEADERS, ...headers };
   if (body.length > 1024 && all["Content-Type"] !== "image/png" && /gzip/.test(req.headers["accept-encoding"] || "")) {
     body = zlib.gzipSync(body);
     all["Content-Encoding"] = "gzip";
@@ -715,6 +722,10 @@ function closeEvents() {
 
 async function handleSync(req, res, sync) {
   if (req.method === "OPTIONS") return send(req, res, 204, "", CORS_HEADERS);
+  // Browsers always send Origin on a PUT. Refusing other origins also covers a page that reaches
+  // this port through DNS rebinding, which CORS cannot stop because the request looks same-origin.
+  const origin = req.headers.origin;
+  if (origin && origin !== SYNC_ORIGIN) return send(req, res, 403, "origin not allowed", CORS_HEADERS);
   let body;
   try {
     body = JSON.parse(await readBody(req));

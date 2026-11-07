@@ -104,6 +104,12 @@ test("open pages hear about pushes on the event stream", async () => {
   controller.abort();
 });
 
+test("responses carry security headers", async () => {
+  const res = await fetch(publicUrl + "/");
+  assert.match(res.headers.get("content-security-policy"), /default-src 'self'/);
+  assert.equal(res.headers.get("x-content-type-options"), "nosniff");
+});
+
 test("the public port rejects pushes", async () => {
   assert.equal((await put(publicUrl, "/api/library", LIBRARY)).status, 405);
   assert.equal((await fetch(publicUrl + "/api/library", { method: "OPTIONS" })).status, 405);
@@ -116,6 +122,10 @@ test("the sync port validates and stores pushes", async () => {
   assert.equal(preflight.headers.get("access-control-allow-origin"), "https://xpui.app.spotify.com");
   assert.equal((await fetch(publicUrl + "/api/meta")).headers.get("access-control-allow-origin"), null);
   assert.equal((await fetch(syncUrl + "/api/library", { method: "PUT", body: "not json" })).status, 400);
+  const foreign = { method: "PUT", headers: { Origin: "http://rebound.example:8081" }, body: JSON.stringify(LIBRARY) };
+  assert.equal((await fetch(syncUrl + "/api/library", foreign)).status, 403);
+  const spotify = { method: "PUT", headers: { Origin: "https://xpui.app.spotify.com" }, body: JSON.stringify({ albums: [], artists: [] }) };
+  assert.equal((await fetch(syncUrl + "/api/library", spotify)).status, 200);
   assert.deepEqual(await (await put(syncUrl, "/api/library", LIBRARY)).json(), { albums: 2, artists: 1 });
   assert.deepEqual(await (await put(syncUrl, "/api/releases", RELEASES)).json(), { items: 7 });
 

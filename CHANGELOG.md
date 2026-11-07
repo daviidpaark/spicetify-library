@@ -5,6 +5,12 @@ All notable changes to `spicetify-library` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] - 2026-11-06
+
+### Security
+- **Sync Port:** Pushes sent from a browser with any origin other than `SYNC_ORIGIN` are refused with `403`. This also stops a web page from reaching the sync port through DNS rebinding, which CORS alone does not block. Pushes without an `Origin` header (`curl`, scripts) still work.
+- **Security Headers:** Responses send a `Content-Security-Policy`, `X-Content-Type-Options: nosniff` and `Referrer-Policy: same-origin`.
+
 ## [0.1.6] - 2026-11-06
 
 ### Added
