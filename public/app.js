@@ -37,6 +37,18 @@ const ICONS = {
   shuffle: '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4.5 6.8l.7-.8C4.1 4.7 2.5 4 .9 4v1c1.3 0 2.6.6 3.5 1.6l.1.2zm7.5 4.7c-1.2 0-2.3-.5-3.2-1.3l-.6.8c1 1 2.4 1.5 3.8 1.5V14l3.5-2-3.5-2v1.5zm0-6V7l3.5-2L12 3v1.5c-1.6 0-3.2.7-4.2 2l-3.4 3.9c-.9 1-2.2 1.6-3.5 1.6v1c1.6 0 3.2-.7 4.2-2l3.4-3.9c.9-1 2.2-1.6 3.5-1.6z"/></svg>',
 };
 
+// Library badge icons, the same as the Library Badges userscript. Navidrome, Plex, Tidarr and slskd:
+// selfh.st/icons (CC BY 4.0). Jellyfin, Bandcamp and Deezer (for Deemix): Simple Icons (CC0).
+const LIBRARY_ICONS = {
+  n: { color: "#0084ff", viewBox: "0 0 512 512", path: "M256 0C114.8 0 0 114.8 0 256s114.8 256 256 256 256-114.8 256-256S397.2 0 256 0m0 491.3C126.3 491.3 20.7 385.7 20.7 256S126.3 20.7 256 20.7 491.3 126.3 491.3 256 385.7 491.3 256 491.3m0-137.9c-53.7 0-97.4-43.7-97.4-97.4s43.7-97.4 97.4-97.4 97.4 43.7 97.4 97.4-43.7 97.4-97.4 97.4m0-174.8c-42.7 0-77.4 34.7-77.4 77.4s34.7 77.4 77.4 77.4 77.4-34.7 77.4-77.4-34.7-77.4-77.4-77.4m0 235c-5.5 0-10-4.5-10-10s4.5-10 10-10c75.9 0 137.6-61.7 137.6-137.6 0-5.5 4.5-10 10-10s10 4.5 10 10c0 86.9-70.7 157.6-157.6 157.6M108.4 266c-5.5 0-10-4.5-10-10 0-86.9 70.7-157.6 157.6-157.6 5.5 0 10 4.5 10 10s-4.5 10-10 10c-75.9 0-137.6 61.7-137.6 137.6 0 5.5-4.5 10-10 10M256 459.8c-5.5 0-10-4.5-10-10s4.5-10 10-10c85.4 0 160.9-60.3 179.5-143.4 1.2-5.4 6.6-8.8 11.9-7.6 5.4 1.2 8.8 6.6 7.6 11.9-10 44.5-35.1 84.8-70.7 113.7-36.1 29.3-81.7 45.4-128.3 45.4m193.6-186.4h-.8c-5.5-.5-9.6-5.3-9.1-10.8.2-2 .2-4.3.2-6.6 0-5.5 4.5-10 10-10s10 4.5 10 10c0 2.5 0 5.4-.2 8.2-.5 5.3-4.9 9.2-10.1 9.2M62.2 266c-5.5 0-10-4.5-10-10 0-2.4 0-4.9.2-7.5.5-5.5 5.4-9.5 10.9-9.1 5.5.5 9.6 5.4 9.1 10.9-.2 1.7-.2 3.7-.2 5.7 0 5.5-4.5 10-10 10m3.8-38.6c-.7 0-1.3-.1-2-.2-5.4-1.1-8.9-6.4-7.8-11.8C75.4 120.8 159.5 52.2 256 52.2c5.5 0 10 4.5 10 10s-4.5 10-10 10c-87.1 0-162.9 61.9-180.2 147.2-1 4.7-5.2 8-9.8 8M256 284c-15.4 0-28-12.6-28-28s12.6-28 28-28 28 12.6 28 28-12.6 28-28 28m0-36c-4.4 0-8 3.6-8 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8" },
+  p: { color: "#e5a00d", viewBox: "0 0 512 512", path: "M256 70H148l108 186-108 186h108l108-186z" },
+  j: { color: "#00A4DC", viewBox: "0 0 24 24", path: "M12 .002C8.826.002-1.398 18.537.16 21.666c1.56 3.129 22.14 3.094 23.682 0C25.384 18.573 15.177 0 12 0zm7.76 18.949c-1.008 2.028-14.493 2.05-15.514 0C3.224 16.9 9.92 4.755 12.003 4.755c2.081 0 8.77 12.166 7.759 14.196zM12 9.198c-1.054 0-4.446 6.15-3.93 7.189.518 1.04 7.348 1.027 7.86 0 .511-1.027-2.874-7.19-3.93-7.19z" },
+  d: { color: "#A238FF", viewBox: "0 0 24 24", path: "M.693 10.024c.381 0 .693-1.256.693-2.807 0-1.55-.312-2.807-.693-2.807C.312 4.41 0 5.666 0 7.217s.312 2.808.693 2.808ZM21.038 1.56c-.364 0-.684.805-.91 2.096C19.765 1.446 19.184 0 18.526 0c-.78 0-1.464 2.036-1.784 5-.312-2.158-.788-3.536-1.325-3.536-.745 0-1.386 2.704-1.62 6.472-.442-1.932-1.083-3.145-1.793-3.145s-1.35 1.213-1.793 3.145c-.242-3.76-.874-6.463-1.628-6.463-.537 0-1.013 1.378-1.325 3.535C6.938 2.036 6.262 0 5.474 0c-.658 0-1.247 1.447-1.602 3.665-.217-1.291-.546-2.105-.91-2.105-.675 0-1.221 2.807-1.221 6.272 0 3.466.546 6.273 1.221 6.273.277 0 .537-.476.736-1.273.32 2.928.996 4.938 1.776 4.938.606 0 1.143-1.204 1.507-3.11.251 3.622.875 6.195 1.602 6.195.46 0 .875-1.023 1.187-2.677C10.142 21.6 11 24 12.004 24c1.005 0 1.863-2.4 2.235-5.822.312 1.654.727 2.677 1.186 2.677.728 0 1.352-2.573 1.603-6.195.364 1.906.9 3.11 1.507 3.11.78 0 1.455-2.01 1.775-4.938.208.797.46 1.273.737 1.273.675 0 1.22-2.807 1.22-6.273-.008-3.457-.553-6.272-1.23-6.272ZM23.307 10.024c.381 0 .693-1.256.693-2.807 0-1.55-.312-2.807-.693-2.807-.381 0-.693 1.256-.693 2.807s.312 2.808.693 2.808Z" },
+  t: { color: "#90d8ff", viewBox: "0 0 512 512", path: "M245.3.1c-.2.1-4.2.4-9 .8-4.8.3-10.5.8-12.7 1.1-4 .5-24.4 4.2-27.7 5.1-36 9-67.8 24.4-97 47C89 61.7 85.5 64.9 73 77.5c-36.2 36.4-60.6 84.4-69.4 135.9C1.1 228.7.2 239.3.2 256.3c0 19.8 1 30.3 4.4 47.9C18.2 375.8 61.6 438 124 475.7c28.5 17.1 64.2 29.9 94.8 34 2.5.4 5.4.8 6.6 1 9.5 1.5 36.4 2 51.7 1 5-.4 9.4-.8 9.7-1s2.9-.5 5.8-.9c2.9-.3 10-1.6 15.8-2.7 14.1-3 12.8-2.6 22.8-5.8 74.6-23.4 134.3-78.5 162.9-150.4 8-20.1 12.6-37.9 16.2-62 2.3-15.5 2.3-47.2.1-64.1-6.5-49-24.2-90.4-55.2-129.5-8.5-10.7-26.4-28.7-36.5-36.8-4.1-3.2-8.3-6.6-9.2-7.4-4.6-3.8-23-15.5-32-20.3C346.9 14.3 314.4 4.4 278.9 1c-5.7-.6-33.2-1.3-33.6-.9m33.8 143.1c23.2 5.1 41.6 15.2 58.2 31.6 16.4 16.3 26.7 35.2 31.7 58.6 2.3 10.5 2.2 36.1-.1 46-3.6 15.8-9.4 29.2-18.2 42.3-7.6 11.2-24.4 27-35.5 33.3-12.6 7.1-23.5 11.3-35.7 13.9-23.4 4.7-47.5 2.5-68.4-6.7-14.8-6.5-25.2-13.5-36.4-24.8-19.1-19.1-29.7-40.8-33.3-68.2-.6-4.1-.7-20.5-.2-25 2.1-19.1 9-37.8 20-53.8 4.1-6.1 17.9-20.8 23.4-25.1 14.8-11.5 36.4-20.8 52.7-22.9 2.2-.3 4.1-.6 4.3-.9 1.2-1 31.2.3 37.5 1.7m-30.3 88.4c-6.7 2-12.3 6.9-16.2 14.1-2.5 4.7-2.4 16.7.4 22 8.3 15.5 29 18.8 41 6.4 15.9-16.4 4.2-43.6-18.6-43.2-2.3-.1-5.3.2-6.6.7" },
+  k: { color: "#cbd5e1", viewBox: "0 0 512 512", path: "M484.8 60.8C459.2 45.2 424.8 37 385 37c-60.9 0-128 19.2-188.3 52.7l-.4-.2s-.1.3-.1.5c-18.3 10.1-35.9 21.4-52.6 34.1C45.8 198.5 18.4 286.9 41.5 334.2 16.2 377.3.6 422 0 475c48.6-92.7 77.8-167.8 236.3-294.2-45.2 9.7-123.5 55.7-176.2 125.6-5-40.9 27.3-106.8 99.3-161.5 9.1-6.9 18.6-13.4 28.2-19.5-7.5 23.5-5.1 17.7-20.8 50.6 23.2-21.9 38.5-35.4 61.3-73 29.7-14.6 60.6-25.5 91.2-32.1-5.1 16.8-14.7 45.2-27.8 67.8 0 0 33.1-7.1 60.5-5.5-14.9 16.5-28.4 34.4-42.1 52.7-18.7 25-38 50.9-62.8 74.9-3 2.9-5.9 5.5-8.7 8.3-38-3.7-63.2 10.6-86.7 35.7 18.6-8.7 43.5-15.8 59.1-11.5-28.8 23.3-74.1 54.2-111.4 51.7-7.1 10.8-7.5 11.1-15.3 24.1 60.5 15 136.5-46.4 181.1-89.9 26.2-25.5 46.2-52.1 65.5-77.9 39.7-53.2 74.1-99.1 150.3-116.5l31-7.1z" },
+  c: { color: "#629AA9", viewBox: "0 0 24 24", path: "M0 18.75l7.437-13.5H24l-7.438 13.5H0z" },
+};
+
 const WEEKDAY_FORMAT = new Intl.DateTimeFormat("en-US", { weekday: "long" });
 const FULL_DATE_FORMAT = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" });
 const SYNC_DATE_FORMAT = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
@@ -67,7 +79,7 @@ function loadState() {
     artistFilter: saved.artistFilter || "all",
     rel: { days: 30, from: "", to: "", types: [...RELEASE_TYPES], saved: false, sort: "newest", ...saved.rel },
     // View settings for this device; null follows what the Spicetify apps synced
-    settings: { groupBy: null, releasesOrder: null, colors: null, ...saved.settings },
+    settings: { groupBy: null, releasesOrder: null, colors: null, badges: false, ...saved.settings },
   };
 }
 
@@ -91,6 +103,7 @@ let currentLoad = null;
 let pendingRestore = null;
 let lastPick = null;
 let openMenu = null;
+let openMenuOwner = null;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -110,8 +123,13 @@ function button(className, label, onClick, icon) {
   return node;
 }
 
+function showBadges() {
+  return Boolean(state.settings.badges && meta.badges?.enabled);
+}
+
 async function api(path, params = {}) {
-  const res = await fetch(`api/${path}?${new URLSearchParams(params)}`);
+  const query = new URLSearchParams(showBadges() ? { ...params, badges: 1 } : params);
+  const res = await fetch(`api/${path}?${query}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -201,20 +219,87 @@ function artwork(item, className) {
 function closeEditionMenu() {
   openMenu?.remove();
   openMenu = null;
+  openMenuOwner = null;
 }
 
-function toggleEditionMenu(card, album) {
-  const wasOpenHere = openMenu?.parentElement === card;
+function toggleMenu(card, owner, className, rows) {
+  const wasOpenHere = openMenuOwner === owner;
   closeEditionMenu();
   if (wasOpenHere) return;
-  openMenu = el("div", "rl-edition-menu");
-  for (const edition of album.editions) {
+  openMenu = el("div", className);
+  openMenu.append(...rows);
+  openMenuOwner = owner;
+  card.appendChild(openMenu);
+}
+
+function toggleEditionMenu(card, owner, album) {
+  const rows = album.editions.map((edition) => {
     const row = el("a", "rl-edition-item");
     row.href = spotifyLink(edition.uri);
     row.append(el("span", "", edition.name), el("span", "", edition.isSaved ? "✓" : ""));
-    openMenu.appendChild(row);
+    return row;
+  });
+  toggleMenu(card, owner, "rl-edition-menu", rows);
+}
+
+function libraryIcon(code) {
+  const icon = LIBRARY_ICONS[code];
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", icon.viewBox);
+  svg.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", icon.path);
+  path.setAttribute("fill", icon.color);
+  svg.appendChild(path);
+  return svg;
+}
+
+function libraryLink(link, className, text) {
+  const a = el("a", className);
+  if (link.href) {
+    a.href = link.href;
+    a.target = "_blank";
+    a.rel = "noopener";
   }
-  card.appendChild(openMenu);
+  a.title = link.title;
+  a.setAttribute("aria-label", link.title);
+  if (text) a.append(text);
+  a.appendChild(libraryIcon(link.code));
+  return a;
+}
+
+// Badges the server matched: icons for the libraries that have the album, and for one Navidrome doesn't have, a
+// "not sure" link to a possible match and a ↓ to download it (▾ lists the other downloaders)
+function libraryBadges(card, badges) {
+  const box = el("div", "rl-lib-badges");
+  if (badges.have) {
+    const owned = el("span", "rl-lib-pill");
+    for (const link of badges.have) owned.appendChild(libraryLink(link));
+    box.appendChild(owned);
+  }
+  if (badges.maybe || badges.get) {
+    const get = el("span", "rl-lib-pill rl-lib-get");
+    if (badges.maybe) get.appendChild(libraryLink(badges.maybe, "rl-lib-maybe")).append("?");
+    if (badges.get) {
+      get.appendChild(libraryLink(badges.get[0], "", "↓"));
+      if (badges.get.length > 1) {
+        const more = button("rl-lib-more", "▾", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const rows = badges.get.slice(1).map((link) => {
+            const row = libraryLink(link, "rl-edition-item rl-lib-menu-item");
+            row.appendChild(el("span", "", link.title));
+            return row;
+          });
+          toggleMenu(card, more, "rl-edition-menu rl-lib-menu", rows);
+        });
+        more.title = "Other downloaders";
+        get.appendChild(more);
+      }
+    }
+    box.appendChild(get);
+  }
+  return box;
 }
 
 function albumCard(album, palette) {
@@ -244,7 +329,7 @@ function albumCard(album, palette) {
       album.hasUpgradeAvailable ? "Deluxe" : `${album.editions.length} Eds ▾`,
       (e) => {
         e.stopPropagation();
-        toggleEditionMenu(card, album);
+        toggleEditionMenu(card, badge, album);
       },
       ICONS.bolt
     );
@@ -258,6 +343,7 @@ function albumCard(album, palette) {
   meta.append(left, el("span", "rl-card-date", album.releaseDate));
 
   card.append(art, title, artistRow, meta);
+  if (album.badges && showBadges()) card.appendChild(libraryBadges(card, album.badges));
   return card;
 }
 
@@ -329,7 +415,8 @@ async function checkForSync() {
   }
   const data = await api("meta").catch(() => null);
   if (!data) return;
-  if (data.library.syncedAt === meta.library.syncedAt && data.releases.syncedAt === meta.releases.syncedAt) return;
+  const badgesChanged = showBadges() && data.badges?.builtAt !== meta.badges?.builtAt;
+  if (data.library.syncedAt === meta.library.syncedAt && data.releases.syncedAt === meta.releases.syncedAt && !badgesChanged) return;
   if (busy()) {
     syncRetry = setTimeout(checkForSync, SYNC_RETRY_MS);
     return;
@@ -846,6 +933,27 @@ function openSettings() {
     el("div", "rl-settings-note", state.settings.colors ? "Using custom colors on this device." : "Following the colors set in the desktop apps.")
   );
 
+  let badgeSection = null;
+  if (meta.badges?.enabled) {
+    badgeSection = settingsSection("Library Badges");
+    const field = el("label", "rl-settings-field", "Navidrome, Plex and Jellyfin Badges");
+    const select = el("select", "rl-sort");
+    select.add(new Option("Show", "on"));
+    select.add(new Option("Hide", "off"));
+    select.value = state.settings.badges ? "on" : "off";
+    select.addEventListener("change", () => {
+      state.settings.badges = select.value === "on";
+      saveState();
+      render();
+    });
+    field.appendChild(select);
+    const failed = meta.badges.failed?.length ? ` Could not reach ${meta.badges.failed.join(", ")} on the last update.` : "";
+    badgeSection.append(
+      field,
+      el("div", "rl-settings-note", `Marks albums that are in your libraries, with links to download the ones Navidrome doesn't have. Matched on the server, last updated ${syncedTime(meta.badges.builtAt)}.${failed}`)
+    );
+  }
+
   const status = settingsSection("Library Status");
   const rows = [
     ["Saved albums", meta.library.albums],
@@ -859,7 +967,7 @@ function openSettings() {
 
   const footer = el("div", "rl-pick-actions");
   footer.appendChild(button("rl-btn primary", "Done", () => ($("settingsModal").hidden = true)));
-  card.append(general, grouping, included, colorSection, status, footer);
+  card.append(general, grouping, included, colorSection, ...(badgeSection ? [badgeSection] : []), status, footer);
   $("settingsModal").hidden = false;
 }
 
@@ -884,7 +992,7 @@ window.addEventListener("hashchange", () => {
   render();
 });
 document.addEventListener("click", (e) => {
-  if (openMenu && !e.target.closest(".rl-edition-menu, .rl-edition-badge")) closeEditionMenu();
+  if (openMenu && !e.target.closest(".rl-edition-menu, .rl-edition-badge, .rl-lib-more")) closeEditionMenu();
 });
 $("pickAgain").addEventListener("click", showPick);
 for (const modal of [$("pickModal"), $("settingsModal")]) {

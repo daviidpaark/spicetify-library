@@ -5,6 +5,12 @@ All notable changes to `spicetify-library` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] - 2026-11-08
+
+### Added
+- **Library Badges:** Albums can be marked with the Navidrome, Plex and Jellyfin libraries that have them, linking to the album there, like the Library Badges userscript but with no browser extension, so it works on a phone. Albums Navidrome doesn't have get a **↓** to download them with Deemix, Tidarr, slskd or Bandcamp, and a **?** when Navidrome probably has them under another title. The server holds the logins and does the matching; pages only receive links. Configured with the new `NAVIDROME_*`, `PLEX_*`, `JELLYFIN_*`, `DEEMIX_URL`, `TIDARR_URL`, `SLSKD_URL`, `BANDCAMP_SEARCH` and `MUSIC_DOWNLOADER` variables, and turned on per device under **Settings → Library Badges**.
+- Album endpoints take `badges=1` to include each album's badges, and `GET /api/meta` reports whether badges are configured, when they were last updated and which servers failed.
+
 ## [0.1.7] - 2026-11-06
 
 ### Security

@@ -6,6 +6,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const zlib = require("node:zlib");
 const { version: APP_VERSION } = require("./package.json");
+const { createBadges } = require("./badges.js");
 
 const PORT = Number(process.env.PORT) || 8080;
 const SYNC_PORT = Number(process.env.SYNC_PORT) || 8081;
@@ -113,6 +114,8 @@ let library = { syncedAt: null, albums: [], artists: [], groupColors: null };
 let releases = { syncedAt: null, items: [], settings: {} };
 let index = null;
 const orderCache = new Map();
+// Pages hear about a new badge index the same way they hear about a push
+const badges = createBadges(undefined, { onUpdate: () => broadcast("event: sync\ndata: badges") });
 
 function text(value) {
   return typeof value === "string" ? value : "";
@@ -232,6 +235,7 @@ function rebuildIndex() {
   });
 
   index = { albums, artists, items, byArtist, savedUris, savedNames, savedExactNames, artistKeyOf, discover: null };
+  badges.setSpotifyAlbums(library.albums);
 }
 
 // Discover pool: catalog releases flagged by whether any edition is saved, editions of one title grouped
@@ -422,10 +426,20 @@ function publicArtist(artist) {
   return { uri: artist.uri, name: artist.name, imageUrl: artist.imageUrl };
 }
 
+// Pages that show library badges ask for them with badges=1
 function page(list, params, map) {
   const offset = Math.max(0, Number(params.get("offset")) || 0);
   const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(params.get("limit")) || 60));
-  return { total: list.length, items: list.slice(offset, offset + limit).map(map) };
+  const withBadges = params.get("badges") === "1" && badges.enabled;
+  const mapItem = withBadges
+    ? (item) => {
+        const result = map(item);
+        const found = badges.forAlbum(item);
+        if (found) result.badges = found;
+        return result;
+      }
+    : map;
+  return { total: list.length, items: list.slice(offset, offset + limit).map(mapItem) };
 }
 
 function typeSet(params) {
@@ -458,6 +472,7 @@ const QUERIES = {
     version: APP_VERSION,
     library: { syncedAt: library.syncedAt, albums: index.albums.length, artists: index.artists.length, groupColors: library.groupColors },
     releases: { syncedAt: releases.syncedAt, count: index.items.length, settings: releases.settings },
+    badges: badges.status(),
   }),
 
   "/api/albums": (params) => {
@@ -777,6 +792,7 @@ function createServer(allowWrite) {
 
 if (require.main === module) {
   loadSnapshots();
+  badges.start();
   const servers = [
     createServer(false).listen(PORT, () => console.log(`Spicetify Library v${APP_VERSION}: read-only site listening on :${PORT}`)),
     createServer(true).listen(SYNC_PORT, () => console.log(`sync endpoint listening on :${SYNC_PORT} (data: ${DATA_DIR})`)),
@@ -784,6 +800,7 @@ if (require.main === module) {
 
   for (const signal of ["SIGINT", "SIGTERM"]) {
     process.on(signal, () => {
+      badges.stop();
       closeEvents();
       let open = servers.length;
       for (const server of servers) {
@@ -794,4 +811,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { createServer, loadSnapshots, closeEvents };
+module.exports = { createServer, loadSnapshots, closeEvents, badges };

@@ -145,6 +145,27 @@ button, input, select { font: inherit; }
 .rl-edition-item:hover { background: rgba(255, 255, 255, 0.18); }
 .rl-edition-item span:last-child { color: #1ed760; flex-shrink: 0; }
 
+/* Library badges: the same dark pills as the Library Badges userscript, in the cover's top-left corner */
+.rl-lib-badges { position: absolute; top: 6px; left: 6px; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; pointer-events: none; }
+.rl-lib-pill {
+  pointer-events: auto; display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px; border-radius: 4px;
+  background: rgba(12, 13, 18, 0.85); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); line-height: 0;
+}
+.rl-lib-pill a { display: inline-flex; align-items: center; gap: 3px; color: inherit; }
+.rl-lib-pill svg, .rl-lib-menu svg { width: 13px; height: 13px; display: block; flex-shrink: 0; }
+.rl-lib-get { border: 1px dashed #6b7280; color: #d1d5db; font: 700 11px/13px system-ui, -apple-system, "Segoe UI", sans-serif; }
+.rl-lib-maybe { color: #fbbf24 !important; gap: 2px !important; }
+.rl-lib-get .rl-lib-maybe:not(:last-child) { padding-right: 4px; margin-right: 1px; border-right: 1px solid #4b5563; }
+.rl-lib-get:has(> .rl-lib-maybe:only-child) { border-color: #fbbf24; }
+.rl-lib-more { all: unset; cursor: pointer; color: #9ca3af; font: 700 10px/13px system-ui, sans-serif; padding: 0 1px; }
+.rl-lib-menu { top: 36px; bottom: auto; left: 6px; right: auto; min-width: 0; max-width: calc(100% - 12px); }
+.rl-lib-menu-item { justify-content: flex-start; }
+.rl-lib-menu-item span:last-child { color: inherit; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (hover: hover) {
+  .rl-lib-pill a:hover { filter: brightness(1.3); }
+  .rl-lib-more:hover { color: #fff; }
+}
+
 /* Phones always show three columns, with a tighter card to fit */
 @media (max-width: 599px) {
   .rl-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 10px; }
@@ -162,6 +183,11 @@ button, input, select { font: inherit; }
   /* A card is too narrow to anchor the editions list, so it opens as a sheet above the tab bar */
   .rl-edition-menu { position: fixed; left: 16px; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); min-width: 0; max-width: none; max-height: 50vh; }
   .rl-edition-item { font-size: 13px; padding: 12px; }
+  .rl-lib-menu { top: auto; left: 16px; right: 16px; max-width: none; }
+  .rl-lib-badges { top: 4px; left: 4px; gap: 3px; }
+  .rl-lib-pill { gap: 3px; padding: 2px 3px; }
+  .rl-lib-pill svg { width: 12px; height: 12px; }
+  .rl-lib-more { padding: 0 3px; }
 }
 
 .rl-empty { text-align: center; color: rgba(255, 255, 255, 0.7); padding: 12vh 16px; font-size: 14px; line-height: 1.6; }

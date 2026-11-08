@@ -78,6 +78,9 @@ test("defaults: an empty data folder serves empty results and the page", async (
   assert.equal((await fetch(publicUrl + "/api/random")).status, 404);
   assert.match(await (await fetch(publicUrl + "/")).text(), /<title>Spotify Library<\/title>/);
   assert.equal((await fetch(publicUrl + "/server.js")).status, 404);
+  assert.equal((await fetch(publicUrl + "/badges.js")).status, 404);
+  assert.deepEqual(meta.badges, { enabled: false, builtAt: null, failed: [] });
+  assert.equal((await get(publicUrl, "/api/albums?badges=1")).total, 0);
 
   const manifest = await get(publicUrl, "/manifest.webmanifest");
   for (const icon of manifest.icons) {
