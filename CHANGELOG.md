@@ -5,6 +5,15 @@ All notable changes to `spicetify-library` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] - 2026-11-09
+
+### Fixed
+- While one of the library servers is unreachable, only that server is retried every five minutes. The healthy servers are only asked for their newest album, instead of every library being fetched in full each time.
+- Pushes that arrive at the same moment no longer share a temporary file, and the stored snapshot changes only once its file has been written.
+
+### Changed
+- Manual rebuilds in the Docker publish workflow produce the same tags as a tag push (`X.Y.Z`, `X.Y` and the tagged commit's `sha-` tag), and `latest` only moves to the newest release tag.
+
 ## [0.1.8] - 2026-11-08
 
 ### Added

@@ -427,16 +427,17 @@ function createBadges(config = readConfig(), { onUpdate = () => {} } = {}) {
     results.clear();
   }
 
-  async function rebuild() {
+  // Refetches the lists of the given servers (all of them by default); the others keep what they last returned
+  async function rebuild(codes = servers) {
     if (building) return building;
     building = (async () => {
       const [fetched, markers] = await Promise.all([
-        Promise.allSettled(servers.map((code) => SERVERS[code].albums(config))),
-        Promise.all(servers.map((code) => SERVERS[code].latest(config).catch(() => null))),
+        Promise.allSettled(codes.map((code) => SERVERS[code].albums(config))),
+        Promise.all(codes.map((code) => SERVERS[code].latest(config).catch(() => null))),
       ]);
-      if (servers.includes("p")) machine = (await plex.machine(config).catch(() => "")) || machine;
+      if (codes.includes("p")) machine = (await plex.machine(config).catch(() => "")) || machine;
       fetched.forEach((result, i) => {
-        const code = servers[i];
+        const code = codes[i];
         // A server that can't be reached right now keeps its last good list
         if (result.status === "fulfilled") {
           items[code] = result.value;
@@ -447,7 +448,8 @@ function createBadges(config = readConfig(), { onUpdate = () => {} } = {}) {
           console.warn(`library badges: ${NAMES[code]} failed: ${result.reason.message}`);
         }
       });
-      builtAt = new Date().toISOString();
+      // Retrying a few failed servers must not restart the clock for the full rebuild of everything
+      if (!builtAt || codes.length === servers.length) builtAt = new Date().toISOString();
       regroup();
       onUpdate();
     })().finally(() => {
@@ -456,15 +458,20 @@ function createBadges(config = readConfig(), { onUpdate = () => {} } = {}) {
     return building;
   }
 
-  // Every few minutes a cheap check of each server's newest album decides whether to fetch the full lists again
+  // Every few minutes a cheap check of each server's newest album decides which servers' full lists to fetch again:
+  // the ones that failed last time and the ones that have something new. Everything is refetched every few hours.
   async function check() {
     if (building) return;
-    const stale = !builtAt || Date.now() - Date.parse(builtAt) > FULL_REBUILD_MS || Object.keys(errors).length > 0;
-    if (!stale) {
-      const markers = await Promise.all(servers.map((code) => SERVERS[code].latest(config).catch(() => null)));
-      if (!markers.some((marker, i) => marker !== null && marker !== latest[servers[i]])) return;
+    let due = servers;
+    if (builtAt && Date.now() - Date.parse(builtAt) <= FULL_REBUILD_MS) {
+      const failed = servers.filter((code) => errors[code]);
+      const healthy = servers.filter((code) => !errors[code]);
+      const markers = await Promise.all(healthy.map((code) => SERVERS[code].latest(config).catch(() => null)));
+      const changed = healthy.filter((code, i) => markers[i] !== null && markers[i] !== latest[code]);
+      due = [...failed, ...changed];
     }
-    await rebuild().catch((err) => console.warn(`library badges: rebuild failed: ${err.message}`));
+    if (!due.length) return;
+    await rebuild(due).catch((err) => console.warn(`library badges: rebuild failed: ${err.message}`));
   }
 
   function forAlbum(album) {

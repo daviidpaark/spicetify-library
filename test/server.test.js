@@ -245,3 +245,17 @@ test("snapshots are reloaded from disk", async () => {
   assert.equal(meta.releases.count, 7);
   assert.equal(meta.releases.settings.groupBy, "date_type");
 });
+
+test("simultaneous pushes leave one complete snapshot and no temp files", async () => {
+  const bodies = [1, 2, 3, 4, 5].map((n) => ({
+    albums: Array.from({ length: n }, (_, i) => ({ uri: `spotify:album:c${n}-${i}`, name: `Album ${n}-${i}`, artist: "Artist" })),
+    artists: [],
+  }));
+  const results = await Promise.all(bodies.map((body) => put(syncUrl, "/api/library", body)));
+  assert.deepEqual(results.map((res) => res.status), [200, 200, 200, 200, 200]);
+
+  const onDisk = JSON.parse(fs.readFileSync(path.join(dataDir, "library.json"), "utf8"));
+  assert.ok(bodies.some((body) => body.albums.length === onDisk.albums.length), "the file holds one whole push");
+  assert.deepEqual(fs.readdirSync(dataDir).filter((name) => name.endsWith(".tmp")), []);
+  assert.equal((await get(publicUrl, "/api/meta")).library.albums, onDisk.albums.length);
+});

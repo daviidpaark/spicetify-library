@@ -605,29 +605,46 @@ const QUERIES = {
 // ---------------------------------------------------------------------------
 // Sync endpoints (SYNC_PORT only)
 // ---------------------------------------------------------------------------
-async function writeSnapshot(file, snapshot) {
-  await fs.promises.mkdir(DATA_DIR, { recursive: true });
-  await fs.promises.writeFile(file + ".tmp", JSON.stringify(snapshot));
-  await fs.promises.rename(file + ".tmp", file);
+// Writes go one at a time through a private temp file, so overlapping pushes cannot interleave or clobber each other's
+// temp file and the snapshot on disk is always one complete push
+let writeQueue = Promise.resolve();
+let writeCount = 0;
+
+function writeSnapshot(file, snapshot) {
+  const run = async () => {
+    await fs.promises.mkdir(DATA_DIR, { recursive: true });
+    const tmp = `${file}.${process.pid}.${++writeCount}.tmp`;
+    try {
+      await fs.promises.writeFile(tmp, JSON.stringify(snapshot));
+      await fs.promises.rename(tmp, file);
+    } catch (err) {
+      await fs.promises.rm(tmp, { force: true });
+      throw err;
+    }
+  };
+  const done = writeQueue.then(run);
+  writeQueue = done.catch(() => {});
+  return done;
 }
 
 // A bare array is accepted too, which is the shape of Random Library's JSON export
 const SYNCS = {
   "/api/library": async (body) => {
     const input = Array.isArray(body) ? { albums: body } : body;
-    library = {
+    const next = {
       syncedAt: new Date().toISOString(),
       albums: cleanAlbums(input.albums),
       artists: cleanArtists(input.artists),
       groupColors: cleanColors(input.groupColors),
     };
-    await writeSnapshot(LIBRARY_FILE, library);
+    await writeSnapshot(LIBRARY_FILE, next);
+    library = next;
     return { albums: library.albums.length, artists: library.artists.length };
   },
   "/api/releases": async (body) => {
     const input = Array.isArray(body) ? { items: body } : body;
     const settings = input.settings && typeof input.settings === "object" ? input.settings : {};
-    releases = {
+    const next = {
       syncedAt: new Date().toISOString(),
       items: cleanAlbums(input.items),
       settings: {
@@ -639,7 +656,8 @@ const SYNCS = {
         allowedTypes: cleanTypes(settings.allowedTypes),
       },
     };
-    await writeSnapshot(RELEASES_FILE, releases);
+    await writeSnapshot(RELEASES_FILE, next);
+    releases = next;
     return { items: releases.items.length };
   },
 };

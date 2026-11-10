@@ -134,6 +134,32 @@ test("a server that fails keeps its last list and is reported", async () => {
   assert.deepEqual(badges.forAlbum(album("x1", "Plex Only", "Artist Two")).have.map((link) => link.code), ["p"]);
 });
 
+test("a periodic check refetches only the servers that failed or changed", async () => {
+  const seen = [];
+  fake.on("request", (req) => seen.push(new URL(req.url, "http://localhost").pathname.split("/")[1]));
+  const badges = createBadges(config());
+  await badges.rebuild();
+  plexDown = true;
+  await badges.rebuild(["p"]);
+  assert.deepEqual(badges.status().failed, ["Plex"]);
+
+  // Plex is still down: the check retries Plex and only asks the other servers for their newest album
+  seen.length = 0;
+  await badges.check();
+  assert.deepEqual(badges.status().failed, ["Plex"]);
+  assert.equal(seen.filter((p) => p === "rest").length, 1, "Navidrome was asked once, for its newest album");
+  assert.equal(seen.filter((p) => p === "jellyfin").length, 1, "Jellyfin was asked once, for its newest album");
+
+  // Plex is back: the next check clears the failure without refetching the others' lists
+  plexDown = false;
+  seen.length = 0;
+  await badges.check();
+  assert.deepEqual(badges.status().failed, []);
+  assert.equal(seen.filter((p) => p === "rest").length, 1);
+  assert.equal(seen.filter((p) => p === "jellyfin").length, 1);
+  assert.ok(badges.forAlbum(album("x1", "Plex Only", "Artist Two")).have.some((link) => link.code === "p"));
+});
+
 test("wrong Navidrome credentials are reported without breaking the other servers", async () => {
   const badges = createBadges(config({ NAVIDROME_PASSWORD: "wrong" }));
   await badges.rebuild();
