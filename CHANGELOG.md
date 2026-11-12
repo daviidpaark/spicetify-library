@@ -5,6 +5,17 @@ All notable changes to `spicetify-library` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10] - 2026-11-12
+
+### Added
+- **Loading on Other Devices:** `GET /api/sync/library` and `GET /api/sync/releases` return the stored snapshots, so Random Library and Release List on another computer can load them instead of syncing from Spotify again. Both ports serve them, so a computer away from home can load through the public address. Only Spotify's desktop client gets CORS access.
+- **Coming Soon:** Release List's upcoming (pre-save) releases show in a collapsible section above the release feed, soonest first, linking to each release's Spotify countdown page. They come from `GET /api/upcoming`, and drop off once their release day has passed.
+- Release List pushes also carry its per-artist release counts and its upcoming releases with the time they were last checked.
+- A release push answers with the time it was stored, so the pushing device does not load its own catalog back.
+
+### Changed
+- The Docker image and CI run on Node 26, the current LTS, instead of Node 22.
+
 ## [0.1.9] - 2026-11-09
 
 ### Fixed

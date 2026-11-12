@@ -111,7 +111,7 @@ function createMatcher(rawQuery) {
 const ALBUM_FIELDS = ["uri", "name", "artist", "artistUri", "imageUrl", "type", "releaseDate", "trackCount"];
 
 let library = { syncedAt: null, albums: [], artists: [], groupColors: null };
-let releases = { syncedAt: null, items: [], settings: {} };
+let releases = { syncedAt: null, items: [], settings: {}, sync: emptyReleaseSync() };
 let index = null;
 const orderCache = new Map();
 // Pages hear about a new badge index the same way they hear about a push
@@ -150,6 +150,39 @@ function cleanAlbums(input) {
     });
   }
   return albums;
+}
+
+// Release List's own sync state, kept so another device can load the catalog without syncing again:
+// release counts per artist, upcoming (pre-save) releases and when those were last checked
+function emptyReleaseSync() {
+  return { artistTotals: {}, preReleases: [], preReleaseCheckedAt: 0 };
+}
+
+function cleanReleaseSync(input) {
+  const sync = emptyReleaseSync();
+  if (!input || typeof input !== "object") return sync;
+  if (input.artistTotals && typeof input.artistTotals === "object") {
+    for (const [uri, total] of Object.entries(input.artistTotals)) {
+      if (uri.startsWith("spotify:artist:") && Number.isInteger(total) && total >= 0) sync.artistTotals[uri] = total;
+    }
+  }
+  if (Array.isArray(input.preReleases)) {
+    sync.preReleases = input.preReleases
+      .filter((entry) => entry && text(entry.uri).startsWith("spotify:prerelease:"))
+      .map((entry) => ({
+        uri: entry.uri,
+        name: text(entry.name),
+        artist: text(entry.artist),
+        artistUri: text(entry.artistUri),
+        imageUrl: imageUrl(entry.imageUrl),
+        type: RELEASE_TYPES.includes(entry.type) ? entry.type : "album",
+        releaseDate: text(entry.releaseDate),
+        trackCount: Number(entry.trackCount) || 0,
+      }));
+  }
+  const checkedAt = Number(input.preReleaseCheckedAt);
+  if (checkedAt > 0) sync.preReleaseCheckedAt = checkedAt;
+  return sync;
 }
 
 function cleanArtists(input) {
@@ -580,6 +613,18 @@ const QUERIES = {
     return result;
   },
 
+  // Upcoming (pre-save) releases from Release List, soonest first. The page sends today as from,
+  // in the viewer's time zone, so releases that are already out drop off.
+  "/api/upcoming": (params) => {
+    const from = params.get("from") || "";
+    const matcher = createMatcher(params.get("q"));
+    const items = releases.sync.preReleases
+      .map((r) => withSearch({ ...r, _day: normalizeDay(r.releaseDate) }, `${r.name} ${r.artist}`))
+      .filter((r) => (!from || !r._day || r._day >= from) && (!matcher || matcher(r)))
+      .sort((a, b) => (a._day || "9999").localeCompare(b._day || "9999"));
+    return { items: items.map((r) => ({ ...publicAlbum(r, false), day: r._day })) };
+  },
+
   "/api/random": (params) => {
     const kind = params.get("kind");
     if (kind === "artist") return index.artists.length ? { artist: publicArtist(pick(index.artists)) } : null;
@@ -655,10 +700,11 @@ const SYNCS = {
         sortOrder: oneOf(settings.sortOrder, SORT_ORDERS),
         allowedTypes: cleanTypes(settings.allowedTypes),
       },
+      sync: cleanReleaseSync(input.sync),
     };
     await writeSnapshot(RELEASES_FILE, next);
     releases = next;
-    return { items: releases.items.length };
+    return { items: releases.items.length, syncedAt: releases.syncedAt };
   },
 };
 
@@ -684,7 +730,12 @@ function loadSnapshots() {
   const rel = readSnapshot(RELEASES_FILE);
   if (rel) {
     const input = Array.isArray(rel) ? { items: rel } : rel;
-    releases = { syncedAt: input.syncedAt || null, items: cleanAlbums(input.items), settings: input.settings || {} };
+    releases = {
+      syncedAt: input.syncedAt || null,
+      items: cleanAlbums(input.items),
+      settings: input.settings || {},
+      sync: cleanReleaseSync(input.sync),
+    };
   }
   rebuildIndex();
 }
@@ -772,6 +823,13 @@ async function handleSync(req, res, sync) {
   broadcast(`event: sync\ndata: ${new URL(req.url, "http://localhost").pathname.split("/").pop()}`);
 }
 
+// The apps load the stored snapshots back, so another device can skip its own sync. Both ports serve them:
+// the public port already shows the same albums and releases, and only Spotify's client gets CORS access.
+const PULLS = {
+  "/api/sync/library": () => library,
+  "/api/sync/releases": () => releases,
+};
+
 function createServer(allowWrite) {
   return http.createServer((req, res) => {
     const url = new URL(req.url, "http://localhost");
@@ -787,6 +845,15 @@ function createServer(allowWrite) {
     }
 
     if (url.pathname === "/api/events") return handleEvents(req, res);
+
+    const pull = PULLS[url.pathname];
+    if (pull) {
+      const origin = req.headers.origin;
+      if (origin && origin !== SYNC_ORIGIN) return send(req, res, 403, "origin not allowed", CORS_HEADERS);
+      // Leave out the search fields the index adds to each entry
+      const body = JSON.stringify(pull(), (key, value) => (key.startsWith("_") ? undefined : value));
+      return send(req, res, 200, body, { "Content-Type": "application/json", ...CORS_HEADERS });
+    }
 
     const query = QUERIES[url.pathname];
     if (query) {

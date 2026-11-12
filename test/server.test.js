@@ -130,7 +130,9 @@ test("the sync port validates and stores pushes", async () => {
   const spotify = { method: "PUT", headers: { Origin: "https://xpui.app.spotify.com" }, body: JSON.stringify({ albums: [], artists: [] }) };
   assert.equal((await fetch(syncUrl + "/api/library", spotify)).status, 200);
   assert.deepEqual(await (await put(syncUrl, "/api/library", LIBRARY)).json(), { albums: 2, artists: 1 });
-  assert.deepEqual(await (await put(syncUrl, "/api/releases", RELEASES)).json(), { items: 7 });
+  const pushed = await (await put(syncUrl, "/api/releases", RELEASES)).json();
+  assert.equal(pushed.items, 7);
+  assert.ok(Date.parse(pushed.syncedAt) > 0);
 
   const meta = await get(publicUrl, "/api/meta");
   assert.equal(meta.library.albums, 2);
@@ -258,4 +260,44 @@ test("simultaneous pushes leave one complete snapshot and no temp files", async 
   assert.ok(bodies.some((body) => body.albums.length === onDisk.albums.length), "the file holds one whole push");
   assert.deepEqual(fs.readdirSync(dataDir).filter((name) => name.endsWith(".tmp")), []);
   assert.equal((await get(publicUrl, "/api/meta")).library.albums, onDisk.albums.length);
+});
+
+test("both ports hand stored snapshots back to the apps", async () => {
+  const sync = {
+    artistTotals: { [ARTIST.uri]: 12, "spotify:album:nope": 3, "spotify:artist:bad": -1 },
+    preReleases: [
+      { uri: "spotify:prerelease:soon1", name: "Coming Up", artist: "Artist One", artistUri: ARTIST.uri, type: "album", releaseDate: "2030-01-01" },
+      { uri: "spotify:album:notpre", name: "Wrong Kind" },
+    ],
+    preReleaseCheckedAt: 1700000000000,
+  };
+  await put(syncUrl, "/api/library", LIBRARY);
+  await put(syncUrl, "/api/releases", { ...RELEASES, sync });
+
+  assert.equal((await get(publicUrl, "/api/sync/releases")).items.length, 7);
+  assert.equal((await fetch(syncUrl + "/api/sync/releases", { headers: { Origin: "http://rebound.example:8081" } })).status, 403);
+  const res = await fetch(syncUrl + "/api/sync/releases", { headers: { Origin: "https://xpui.app.spotify.com" } });
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("access-control-allow-origin"), "https://xpui.app.spotify.com");
+  const pulled = await res.json();
+  assert.equal(pulled.items.length, 7);
+  assert.ok(pulled.syncedAt);
+  assert.deepEqual(pulled.sync.artistTotals, { [ARTIST.uri]: 12 });
+  assert.deepEqual(pulled.sync.preReleases.map((r) => r.uri), ["spotify:prerelease:soon1"]);
+  assert.equal(pulled.sync.preReleaseCheckedAt, 1700000000000);
+  assert.ok(!JSON.stringify(pulled).includes("_search"));
+
+  const lib = await get(syncUrl, "/api/sync/library");
+  assert.deepEqual(lib.albums.map((a) => [a.uri, a.releaseDate, a.trackCount]), [
+    ["spotify:album:saved1", "2020-05-01", 10],
+    ["spotify:album:saved2", "2021-01-01", 5],
+  ]);
+
+  const upcoming = await get(publicUrl, "/api/upcoming?from=2026-01-01");
+  assert.deepEqual(upcoming.items.map((r) => [r.uri, r.day, r.name]), [["spotify:prerelease:soon1", "2030-01-01", "Coming Up"]]);
+  assert.equal((await get(publicUrl, "/api/upcoming?from=2031-01-01")).items.length, 0);
+  assert.equal((await get(publicUrl, "/api/upcoming?q=nothing+like+it")).items.length, 0);
+
+  loadSnapshots();
+  assert.equal((await get(syncUrl, "/api/sync/releases")).sync.preReleases.length, 1);
 });

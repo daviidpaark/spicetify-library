@@ -90,6 +90,8 @@ Badges and their links show on both ports, so anyone who can open the read-only 
 2. Enter the sync address, for example `http://192.168.1.100:8081`. The address is shared between the two apps.
 3. Press **Sync Now** (Random Library) or **Sync to Web Now** (Release List).
 
+On another computer, enter the same address and the apps load what was pushed instead of syncing from Spotify again: Release List takes the server's catalog whenever it is newer than its own, and Random Library fills in saved-album release dates from it. Release List's upcoming (pre-save) releases also show on the site in a collapsible **Coming Soon** section. A computer away from home can use the public read-only address (for example `https://spotify.example.com`); it loads from there but cannot push.
+
 After that, each app also pushes automatically whenever you press its **Refresh** button. Random Library sends saved albums and followed artists; Release List sends its release catalog. Random Library also pushes in the background whenever Spotify is open and you save or remove an album or follow or unfollow an artist, even when its page is closed.
 
 Open pages update on their own: the server announces each push on `GET /api/events`, and the page reloads the current view in place, keeping filters, search and scroll position. Reverse proxies need to pass that event stream through unbuffered; Caddy and nginx (which honors the `X-Accel-Buffering: no` header) do by default.

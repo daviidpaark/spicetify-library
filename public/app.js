@@ -34,6 +34,7 @@ const ICONS = {
   check: '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M15.53 2.47a.75.75 0 0 1 0 1.06L4.907 14.153.47 9.716a.75.75 0 0 1 1.06-1.06l3.377 3.376L14.47 2.47a.75.75 0 0 1 1.06 0z"/></svg>',
   bolt: '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
   gear: '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>',
+  chevron: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>',
   shuffle: '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4.5 6.8l.7-.8C4.1 4.7 2.5 4 .9 4v1c1.3 0 2.6.6 3.5 1.6l.1.2zm7.5 4.7c-1.2 0-2.3-.5-3.2-1.3l-.6.8c1 1 2.4 1.5 3.8 1.5V14l3.5-2-3.5-2v1.5zm0-6V7l3.5-2L12 3v1.5c-1.6 0-3.2.7-4.2 2l-3.4 3.9c-.9 1-2.2 1.6-3.5 1.6v1c1.6 0 3.2-.7 4.2-2l3.4-3.9c.9-1 2.2-1.6 3.5-1.6z"/></svg>',
 };
 
@@ -77,7 +78,7 @@ function loadState() {
     discoverTypes: Array.isArray(saved.discoverTypes) && saved.discoverTypes.length ? saved.discoverTypes : ["album", "ep"],
     discoverSaved: saved.discoverSaved === true,
     artistFilter: saved.artistFilter || "all",
-    rel: { days: 30, from: "", to: "", types: [...RELEASE_TYPES], saved: false, sort: "newest", ...saved.rel },
+    rel: { days: 30, from: "", to: "", types: [...RELEASE_TYPES], saved: false, sort: "newest", upcomingCollapsed: false, ...saved.rel },
     // View settings for this device; null follows what the Spicetify apps synced
     settings: { groupBy: null, releasesOrder: null, colors: null, badges: false, ...saved.settings },
   };
@@ -685,6 +686,12 @@ async function showPick() {
 // ---------------------------------------------------------------------------
 // First day inside an N-day range. Release List dates a release at midday local time and
 // keeps it when that is within the last N days, so the cut-off day depends on the time of day.
+function todayDay() {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
 function rangeStart(days) {
   const cutoff = new Date(Date.now() - days * DAY_MS);
   if (cutoff.getHours() >= 12 && (cutoff.getHours() > 12 || cutoff.getMinutes() > 0 || cutoff.getSeconds() > 0)) {
@@ -762,7 +769,42 @@ function renderReleases() {
   panel.appendChild(types);
   view.appendChild(panel);
 
+  // Upcoming releases sit above the feed; the in-library filter hides them since they cannot be saved yet
+  const upcoming = el("section", "rl-upcoming");
+  upcoming.hidden = true;
+  view.appendChild(upcoming);
+  let upcomingRequest = 0;
+  const loadUpcoming = async () => {
+    const request = ++upcomingRequest;
+    const data = rel.saved ? { items: [] } : await api("upcoming", { from: todayDay(), q: queries.releases }).catch(() => ({ items: [] }));
+    if (request !== upcomingRequest) return;
+    upcoming.textContent = "";
+    upcoming.hidden = !data.items.length;
+    if (!data.items.length) return;
+    const header = el("button", "rl-upcoming-header" + (rel.upcomingCollapsed ? " collapsed" : ""));
+    const title = el("span", "rl-upcoming-title", "Coming Soon");
+    const chevron = el("span", "rl-upcoming-chevron");
+    chevron.innerHTML = ICONS.chevron;
+    title.appendChild(chevron);
+    header.append(title, el("span", "rl-group-count", releaseCount(data.items.length)));
+    header.title = rel.upcomingCollapsed ? "Show upcoming releases" : "Hide upcoming releases";
+    header.addEventListener("click", () => {
+      rel.upcomingCollapsed = !rel.upcomingCollapsed;
+      saveState();
+      loadUpcoming();
+    });
+    upcoming.appendChild(header);
+    if (rel.upcomingCollapsed) return;
+    const cards = el("div", "rl-grid");
+    for (const item of data.items) {
+      const card = albumCard({ ...item, releaseDate: `Out ${item.day || "soon"}` }, colors.releases);
+      cards.appendChild(card);
+    }
+    upcoming.appendChild(cards);
+  };
+
   const load = () => {
+    loadUpcoming();
     const params = { q: queries.releases, sort: rel.sort, types: rel.types.join(",") };
     if (rel.days > 0) params.from = rangeStart(rel.days);
     if (rel.days === -1) Object.assign(params, { from: rel.from, to: rel.to });

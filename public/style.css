@@ -101,6 +101,16 @@ button, input, select { font: inherit; }
 }
 .rl-group-header:first-child { margin-top: 0; }
 .rl-group-count { font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, 0.5); }
+.rl-upcoming { margin-bottom: 24px; }
+.rl-upcoming-header {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px;
+  padding: 0 0 8px; background: none; border: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff; font: inherit; cursor: pointer; text-align: left;
+}
+.rl-upcoming-header.collapsed { margin-bottom: 0; }
+.rl-upcoming-title { display: flex; align-items: center; gap: 4px; font-size: 18px; font-weight: 800; }
+.rl-upcoming-chevron { display: flex; transform: rotate(90deg); transition: transform 0.15s; }
+.rl-upcoming-header.collapsed .rl-upcoming-chevron { transform: none; }
 .rl-subgroup-header { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font-size: 11px; color: rgba(255, 255, 255, 0.5); }
 
 .rl-card { position: relative; padding: 0 0 8px; display: flex; flex-direction: column; min-width: 0; transition: transform 0.18s ease; }
