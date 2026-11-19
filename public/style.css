@@ -185,7 +185,7 @@ button, input, select { font: inherit; }
   .rl-card-artist-row { flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 2px; }
   .rl-card-artist { max-width: 100%; }
   .rl-card-tracks { display: none; }
-  .rl-card-meta { margin-top: 5px; gap: 4px; }
+  .rl-card-meta { margin-top: 5px; gap: 3px 4px; flex-wrap: wrap; }
   .rl-type-badge, .rl-edition-badge { font-size: 9px; padding: 2px 4px; letter-spacing: 0.3px; }
   .rl-card-date { font-size: 10px; }
   .rl-in-library-badge { top: 6px; right: 6px; width: 18px; height: 18px; }
